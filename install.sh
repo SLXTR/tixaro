@@ -48,6 +48,20 @@ find_free_port() {
   printf '%s' "$port"
 }
 
+stable_or_free_port() {
+  configured_port="$1"
+  default_port="$2"
+  expected_mode="$3"
+  case "$configured_port" in
+    ''|*[!0-9]*) configured_port="$default_port" ;;
+  esac
+  if [ "$previous_deployment_mode" = "$expected_mode" ]; then
+    printf '%s' "$configured_port"
+  else
+    find_free_port "$configured_port"
+  fi
+}
+
 host_nginx_is_running() {
   if command -v pgrep >/dev/null 2>&1 && pgrep -x nginx >/dev/null 2>&1; then
     return 0
@@ -300,16 +314,14 @@ if [ -n "$proxy_container" ]; then
   deployment_mode="container-proxy"
 elif host_nginx_is_running; then
   app_port="$(get_env_value APP_PORT)"
-  case "$app_port" in ''|*[!0-9]*) app_port="3000" ;; esac
-  app_port="$(find_free_port "$app_port")"
+  app_port="$(stable_or_free_port "$app_port" 3000 host-nginx)"
   set_env_value APP_PORT "$app_port"
   sed -e "s/tickets.example.com/${nginx_server_name}/g" -e "s/127.0.0.1:3000/127.0.0.1:${app_port}/g" deploy/nginx.conf > "$generated_dir/nginx-host.conf"
   docker compose -f docker-compose.yml -f docker-compose.host-nginx.yml up -d --build
   deployment_mode="host-nginx"
 else
   http_port="$(get_env_value TIXARO_HTTP_PORT)"
-  case "$http_port" in ''|*[!0-9]*) http_port="8080" ;; esac
-  http_port="$(find_free_port "$http_port")"
+  http_port="$(stable_or_free_port "$http_port" 8080 bundled-nginx)"
   set_env_value TIXARO_HTTP_PORT "$http_port"
   docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d --build
   deployment_mode="bundled-nginx"

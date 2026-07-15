@@ -90,16 +90,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.8",
-          name: "Tixaro 1.0.8",
+          tag_name: "v1.0.9",
+          name: "Tixaro 1.0.9",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.8",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.9",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.8");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.9");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -132,6 +132,9 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(nginxContainer, /proxy_pass \$tixaro_upstream/);
   assert.match(installer, /wait_for_app_health/);
   assert.match(installer, /reload_nginx_container/);
+  assert.match(installer, /stable_or_free_port "\$app_port" 3000 host-nginx/);
+  assert.match(installer, /stable_or_free_port "\$http_port" 8080 bundled-nginx/);
+  assert.match(installer, /\[ "\$previous_deployment_mode" = "\$expected_mode" \]/);
   assert.match(installer, /docker exec "\$nginx_container" nginx -s reload/);
   assert.ok(installer.lastIndexOf("wait_for_app_health") < installer.lastIndexOf('reload_nginx_container "$proxy_container"'));
   assert.match(installer, /tixaro-update\.timer/);
@@ -148,7 +151,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.7");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.8");
   assert.match(readme, /Vollständig deinstallieren/);
 });
 
