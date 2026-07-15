@@ -1223,6 +1223,27 @@ label small { color: var(--muted); font-weight: 450; }
 .admin-module-card, .admin-module-card:last-child:nth-child(odd) { min-height: 82px; padding: 16px 18px; }
 .admin-module-card > span:first-child strong { font-size: var(--font-nav); }
 .admin-module-card > span:first-child small { margin-top: 4px; font-size: var(--font-sm); line-height: 1.45; }
+.settings-body .main-content { width: min(1920px, 100%); padding: 40px 48px 80px; }
+.settings-body .admin-commandbar { min-height: 68px; margin-bottom: 28px; padding-bottom: 18px; }
+.settings-body .admin-command-home { min-height: 48px; gap: 12px; }
+.settings-body .admin-command-home > span { width: 40px; height: 40px; font-size: var(--font-sm); }
+.settings-body .admin-command-home strong { font-size: var(--font-nav); }
+.settings-body .admin-command-search { width: min(460px, 36vw); }
+.settings-body .admin-command-search input { min-height: 48px; padding-left: 42px; font-size: var(--font-control); }
+.settings-body .admin-command-search button { width: 42px; font-size: var(--font-subheading); }
+.settings-body .admin-console-header { min-height: 108px; margin-bottom: 28px; padding-bottom: 26px; }
+.settings-body .admin-console-header h1 { font-size: clamp(36px, 2.2vw, 44px); }
+.settings-body .admin-console-header > div > p:last-child { font-size: var(--font-control); }
+.settings-body .admin-module-list { width: 100%; max-width: none; border-radius: 12px; }
+.settings-body .admin-module-card,
+.settings-body .admin-module-card:last-child:nth-child(odd) { min-height: 108px; gap: 18px; padding: 22px 24px; }
+.settings-body .admin-module-card > span:first-child strong { font-size: var(--font-subheading); }
+.settings-body .admin-module-card > span:first-child small { margin-top: 6px; font-size: var(--font-base); }
+.settings-body .admin-module-arrow { font-size: var(--font-subheading); }
+.settings-body .settings-layout { gap: 24px; }
+.settings-body .panel-header { min-height: 78px; padding: 18px 22px; }
+.settings-body .config-item summary { min-height: 88px; gap: 16px; padding: 17px 22px; }
+.settings-body .config-body { padding: 22px 24px 21px 74px; }
 .update-center-panel { width: 100%; }
 .update-facts > div { min-height: 52px; align-items: center; }
 .update-facts dt { font-size: var(--font-sm); }
@@ -1237,6 +1258,8 @@ label small { color: var(--muted); font-weight: 450; }
   .menu-button { width: 44px; height: 44px; font-size: var(--font-sm); }
   .topbar { min-height: 68px; }
   .main-content { padding: 28px 24px 64px; }
+  .settings-body .main-content { padding: 28px 24px 64px; }
+  .settings-body .admin-command-search { width: min(420px, 54vw); }
   .admin-command-search { width: min(360px, 52vw); }
 }
 

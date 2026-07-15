@@ -13,7 +13,8 @@
   <script src="/app.js" defer></script>
 </head>
 <% const isCustomerPortal = currentUser?.role === 'requester'; %>
-<body class="<%= currentUser ? `app-body${isCustomerPortal ? ' customer-portal-body' : ''}` : 'auth-body' %>">
+<% const isSettingsPage = currentUser && currentPath.startsWith('/settings'); %>
+<body class="<%= currentUser ? `app-body${isCustomerPortal ? ' customer-portal-body' : ''}${isSettingsPage ? ' settings-body' : ''}` : 'auth-body' %>">
   <% if (currentUser) { %>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">

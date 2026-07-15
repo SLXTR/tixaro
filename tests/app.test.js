@@ -90,16 +90,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.11",
-          name: "Tixaro 1.0.11",
+          tag_name: "v1.0.12",
+          name: "Tixaro 1.0.12",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.11",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.12",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.11");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.12");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -107,7 +107,7 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
 });
 
 test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Reverse Proxy", async () => {
-  const [compose, installer, nginxContainer, updateHelper, updateService, packageMetadata, readme, settingsView, stylesheet] = await Promise.all([
+  const [compose, installer, nginxContainer, updateHelper, updateService, packageMetadata, readme, settingsView, stylesheet, layoutView] = await Promise.all([
     readFile(new URL("../docker-compose.yml", import.meta.url), "utf8"),
     readFile(new URL("../install.sh", import.meta.url), "utf8"),
     readFile(new URL("../deploy/nginx-container.conf.template", import.meta.url), "utf8"),
@@ -116,7 +116,8 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../README.md", import.meta.url), "utf8"),
     readFile(new URL("../views/settings/index.ejs", import.meta.url), "utf8"),
-    readFile(new URL("../public/styles.css", import.meta.url), "utf8")
+    readFile(new URL("../public/styles.css", import.meta.url), "utf8"),
+    readFile(new URL("../views/layout.ejs", import.meta.url), "utf8")
   ]);
 
   assert.doesNotMatch(compose, /127\.0\.0\.1:\$\{APP_PORT:-3000\}:3000/);
@@ -154,11 +155,14 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.10");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.11");
   assert.match(readme, /Vollständig deinstallieren/);
   assert.match(stylesheet, /--font-xs: 15px/);
   assert.match(stylesheet, /body \{[^}]*font: 18px\/1\.55/);
   assert.doesNotMatch(stylesheet, /font-size:\s*(?:12|13)px/);
+  assert.match(layoutView, /settings-body/);
+  assert.match(stylesheet, /\.settings-body \.main-content \{ width: min\(1920px, 100%\)/);
+  assert.match(stylesheet, /\.settings-body \.admin-module-card:last-child:nth-child\(odd\) \{ min-height: 108px/);
 });
 
 test("Ersteinrichtung setzt alle zentralen Werte und sperrt sich danach", async () => {
