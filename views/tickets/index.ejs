@@ -1,17 +1,71 @@
 <% layout('layout') -%>
-<div class="page-heading compact-heading">
-  <div><p class="eyebrow">Arbeitsbereich</p><h1>Tickets</h1><p>Anfragen durchsuchen, priorisieren und bearbeiten.</p></div>
-  <a class="button button-primary" href="/tickets/new">＋ Neues Ticket</a>
-</div>
-
-<section class="panel">
-  <form class="filter-bar" action="/tickets" method="get">
-    <label class="search-field"><span>⌕</span><input type="search" name="q" value="<%= filters.q %>" placeholder="Ticketnummer, Betreff oder Name …"></label>
+<% if (currentUser.role === 'requester') { %>
+<header class="workbench-heading portal-list-heading">
+  <div><p class="eyebrow">Kundenportal</p><h1>Meine Anfragen</h1><p>Behalte den aktuellen Stand im Blick oder ergänze eine bestehende Anfrage.</p></div>
+  <a class="button button-primary" href="/tickets/new">Neue Anfrage stellen</a>
+</header>
+<section class="panel portal-ticket-panel">
+  <form class="filter-bar portal-ticket-filter" action="/tickets" method="get">
+    <label class="search-field"><span>⌕</span><input type="search" name="q" value="<%= filters.q %>" placeholder="Nummer oder Betreff durchsuchen …"></label>
     <label><span>Status</span><select name="status"><option value="">Alle Status</option><% ['open','in_progress','waiting','resolved','closed'].forEach(value => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= statusLabel(value) %></option><% }) %></select></label>
-    <label><span>Priorität</span><select name="priority"><option value="">Alle Prioritäten</option><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= filters.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
-    <button class="button button-secondary" type="submit">Filtern</button>
-    <% if (filters.q || filters.status || filters.priority) { %><a class="text-link" href="/tickets">Zurücksetzen</a><% } %>
+    <button class="button button-secondary" type="submit">Anzeigen</button>
+    <% if (filters.q || filters.status) { %><a class="filter-reset" href="/tickets">Zurücksetzen</a><% } %>
   </form>
-  <div class="result-count"><strong><%= tickets.length %></strong> Tickets gefunden</div>
-  <%- include('../partials/ticket-table', { tickets }) %>
+  <% if (tickets.length) { %><div class="portal-ticket-list portal-ticket-list-large">
+    <% tickets.forEach(ticket => { %><a href="/tickets/<%= ticket.id %>" class="portal-ticket-row">
+      <span><strong><%= ticket.subject %></strong><small><%= ticket.ticket_number %> · Aktualisiert am <%= formatDate(ticket.updated_at) %></small></span>
+      <span class="badge badge-status-<%= ticket.status %>"><%= statusLabel(ticket.status) %></span><b>→</b>
+    </a><% }) %>
+  </div><% } else { %><div class="portal-empty"><span>✓</span><strong>Keine passenden Anfragen</strong><p>Erstelle eine neue Anfrage oder passe den Filter an.</p></div><% } %>
 </section>
+<% } else { %>
+<header class="workbench-heading">
+  <div>
+    <h1>Tickets</h1>
+    <p>Alle Vorgänge und Queues.</p>
+  </div>
+</header>
+
+<div class="ticket-workbench">
+  <aside class="queue-rail panel" aria-label="Ticketansichten und Queues">
+    <div class="queue-rail-header"><span>Ansichten</span></div>
+    <nav class="queue-view-list" aria-label="Ticketansichten">
+      <a class="<%= !filters.mine && !filters.escalated && !filters.queue ? 'is-active' : '' %>" href="/tickets">
+        <strong>Alle Tickets</strong>
+      </a>
+      <% if (can('tickets.manage')) { %><a class="<%= filters.mine ? 'is-active' : '' %>" href="/tickets?mine=1">
+        <strong>Mein Arbeitskorb</strong>
+      </a><% } %>
+      <a class="<%= filters.escalated ? 'is-active is-critical' : '' %>" href="/tickets?escalated=1">
+        <strong>Eskalationen</strong>
+      </a>
+    </nav>
+    <div class="queue-rail-title"><span>Queues</span></div>
+    <nav class="queue-folder-list" aria-label="Queues">
+      <% queues.forEach(value => { %>
+        <a class="<%= filters.queue === value ? 'is-active' : '' %>" href="/tickets?queue=<%= encodeURIComponent(value) %>"><strong><%= value %></strong></a>
+      <% }) %>
+    </nav>
+  </aside>
+
+  <section class="panel ticket-list-panel">
+    <div class="ticket-list-heading">
+      <div>
+        <h2><%= filters.queue || (filters.mine ? 'Mein Arbeitskorb' : filters.escalated ? 'Eskalationen' : 'Alle Tickets') %></h2>
+      </div>
+      <span class="result-badge"><%= tickets.length %> Tickets</span>
+    </div>
+    <form class="filter-bar ticket-filter-bar" action="/tickets" method="get">
+      <% if (filters.mine) { %><input type="hidden" name="mine" value="1"><% } %>
+      <% if (filters.escalated) { %><input type="hidden" name="escalated" value="1"><% } %>
+      <label class="search-field"><span>⌕</span><input type="search" name="q" value="<%= filters.q %>" placeholder="Nummer, Betreff oder anfragende Person …"></label>
+      <label><span>Status</span><select name="status"><option value="">Alle Status</option><% ['open','in_progress','waiting','resolved','closed'].forEach(value => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= statusLabel(value) %></option><% }) %></select></label>
+      <label><span>Queue</span><select name="queue"><option value="">Alle Queues</option><% queues.forEach(value => { %><option value="<%= value %>" <%= filters.queue === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+      <label><span>Priorität</span><select name="priority"><option value="">Alle Prioritäten</option><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= filters.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
+      <button class="button button-secondary" type="submit">Anwenden</button>
+      <% if (filters.q || filters.status || filters.priority || filters.queue) { %><a class="filter-reset" href="/tickets<%= filters.mine ? '?mine=1' : filters.escalated ? '?escalated=1' : '' %>">Filter löschen</a><% } %>
+    </form>
+    <%- include('../partials/ticket-table', { tickets }) %>
+  </section>
+</div>
+<% } %>

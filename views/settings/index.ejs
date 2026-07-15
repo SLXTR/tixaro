@@ -1,0 +1,447 @@
+<% layout('layout') -%>
+<div class="admin-console">
+  <div class="admin-commandbar">
+    <a class="admin-command-home <%= section === 'overview' ? 'is-active' : '' %>" href="/settings"><span>AC</span><strong>Admin-Center</strong></a>
+    <form class="admin-command-search" action="/settings" method="get"><button type="submit" aria-label="Einstellungen suchen">⌕</button><input type="search" name="q" value="<%= query %>" aria-label="Einstellungen suchen" placeholder="Einstellung suchen …"></form>
+  </div>
+
+  <section class="admin-console-main">
+    <header class="admin-console-header">
+      <div>
+        <% if (section !== 'overview') { %><p class="admin-breadcrumb"><a href="/settings">Administration</a><span>/</span><%= currentSection.group %></p><% } %>
+        <h1><%= currentSection.title %></h1>
+        <p><%= currentSection.description %></p>
+      </div>
+      <% if (currentSection.action) { %><a class="button button-primary" href="#settings-editor">+ <%= currentSection.action %></a><% } %>
+    </header>
+
+    <% if (section === 'overview') { %>
+      <% if (query) { %><div class="admin-overview-intro"><p>Suchergebnisse für „<%= query %>“</p><a href="/settings">Alle Bereiche anzeigen</a></div><% } %>
+      <div class="admin-module-list">
+        <% adminModules.forEach(module => { %>
+          <a class="admin-module-card" href="<%= module.href %>">
+            <span><strong><%= module.title %></strong><small><%= module.description %></small></span>
+            <span class="admin-module-arrow">→</span>
+          </a>
+        <% }) %>
+      </div>
+      <% if (!adminModules.length) { %><div class="admin-no-results"><span>–</span><h2>Kein Modul gefunden</h2><p>Prüfe den Suchbegriff oder öffne wieder die vollständige Übersicht.</p><a class="button button-secondary" href="/settings">Alle Module anzeigen</a></div><% } %>
+    <% } %>
+
+<% if (section === 'numbers') { %>
+  <section class="panel form-panel number-format-panel">
+    <div class="panel-header"><div><h2>Nummernformate</h2><p>Bereits vergebene Nummern bleiben unverändert.</p></div></div>
+    <form class="stack-form" action="/settings/numbers" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="form-grid">
+        <label>Ticketnummer
+          <select name="ticket_format"><% ticketNumberFormats.forEach(item => { %><option value="<%= item.key %>" <%= numberFormats.ticket === item.key ? 'selected' : '' %>><%= item.label %> · <%= item.preview %></option><% }) %></select>
+          <small>Wird bei manuellen und automatisch importierten Tickets verwendet.</small>
+        </label>
+        <label>Kundennummer
+          <select name="customer_format"><% customerNumberFormats.forEach(item => { %><option value="<%= item.key %>" <%= numberFormats.customer === item.key ? 'selected' : '' %>><%= item.label %> · <%= item.preview %></option><% }) %></select>
+          <small>Gilt für neu angelegte Unternehmen.</small>
+        </label>
+      </div>
+      <div><button class="button button-primary" type="submit">Nummernkreise speichern</button></div>
+    </form>
+  </section>
+<% } %>
+
+<% if (section === 'templates') { %>
+  <div class="settings-layout template-settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Gespeicherte Vorlagen</h2></div></div>
+      <div class="config-list">
+        <% responseTemplates.forEach(template => { %>
+          <details class="config-item <%= template.active ? '' : 'is-inactive' %>">
+            <summary><span class="config-code">TXT</span><span class="config-identity"><strong><%= template.name %></strong><small><%= templateTypes[template.template_type] %></small></span><span class="config-open">Bearbeiten</span></summary>
+            <div class="config-body">
+              <form class="stack-form" action="/settings/templates/<%= template.id %>/update" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="form-grid">
+                  <label>Name<input name="name" value="<%= template.name %>" minlength="2" maxlength="120" required></label>
+                  <label>Art<select name="template_type"><% Object.entries(templateTypes).forEach(([value,label]) => { %><option value="<%= value %>" <%= template.template_type === value ? 'selected' : '' %>><%= label %></option><% }) %></select></label>
+                  <label class="field-full">Betreff <small>optional</small><input name="subject" value="<%= template.subject || '' %>" maxlength="180"></label>
+                  <label class="field-full">Inhalt<textarea name="body" rows="8" maxlength="20000" required><%= template.body %></textarea></label>
+                  <label>Sortierung<input type="number" name="sort_order" min="0" max="9999" value="<%= template.sort_order %>"></label>
+                </div>
+                <button class="button button-primary button-small" type="submit">Vorlage speichern</button>
+              </form>
+              <form class="config-toggle" action="/settings/templates/<%= template.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= template.active ? 'link-danger' : '' %>" type="submit"><%= template.active ? 'Deaktivieren' : 'Aktivieren' %></button></form>
+            </div>
+          </details>
+        <% }) %>
+        <% if (!responseTemplates.length) { %><p class="empty-small">Noch keine Vorlagen angelegt.</p><% } %>
+      </div>
+    </section>
+    <aside class="admin-side-stack" id="settings-editor">
+      <section class="panel config-create">
+        <div class="panel-header"><div><h2>Vorlage anlegen</h2></div></div>
+        <form class="stack-form" action="/settings/templates" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label>Name<input name="name" minlength="2" maxlength="120" placeholder="z. B. Rückfrage zum Gerät" required></label>
+          <label>Art<select name="template_type"><% Object.entries(templateTypes).forEach(([value,label]) => { %><option value="<%= value %>"><%= label %></option><% }) %></select></label>
+          <label>Betreff <small>optional</small><input name="subject" maxlength="180"></label>
+          <label>Inhalt<textarea name="body" rows="10" maxlength="20000" placeholder="Guten Tag {{requester.first_name}}, …" required></textarea></label>
+          <label>Sortierung<input type="number" name="sort_order" min="0" max="9999" value="100"></label>
+          <button class="button button-primary button-full" type="submit">Vorlage anlegen</button>
+        </form>
+      </section>
+      <section class="panel template-variable-panel">
+        <div class="panel-header"><div><h2>Verfügbare Variablen</h2><p>Beim Einfügen in ein Ticket werden sie automatisch ersetzt.</p></div></div>
+        <div class="template-variable-list"><% templateVariables.forEach(variable => { %><div><code>{{<%= variable.key %>}}</code><span><%= variable.label %></span></div><% }) %></div>
+      </section>
+    </aside>
+  </div>
+<% } %>
+
+<% if (section === 'updates') { %>
+  <section class="panel form-panel update-center-panel">
+    <div class="panel-header"><div><h2>GitHub-Releases</h2><p>Das Update-Center berücksichtigt ausschließlich veröffentlichte Releases.</p></div></div>
+    <% if (updateState?.enabled) { %>
+      <dl class="update-facts">
+        <div><dt>Installierte Version</dt><dd><strong><%= updateState.version %></strong> · <%= updateState.commit %></dd></div>
+        <div><dt>GitHub-Repository</dt><dd><%= updateState.repository %></dd></div>
+        <div><dt>Installation</dt><dd>Git-Zweig <%= updateState.branch || 'ohne Zweig' %></dd></div>
+      </dl>
+      <form action="/settings/updates/check" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary" type="submit">Neuestes Release prüfen</button></form>
+      <% if (updateState.lastCheck) { %>
+        <div class="update-result">
+          <strong><%= updateState.lastCheck.available ? `${updateState.lastCheck.name} ist verfügbar` : 'Aktuelles Release installiert' %></strong>
+          <p>Release <%= updateState.lastCheck.tagName %><% if (updateState.lastCheck.publishedAt) { %> · veröffentlicht <%= formatDateTime(updateState.lastCheck.publishedAt) %><% } %> · geprüft <%= formatDateTime(updateState.lastCheck.checkedAt) %></p>
+          <% if (updateState.lastCheck.notes) { %><p class="update-release-notes"><%= updateState.lastCheck.notes %></p><% } %>
+          <% if (!updateState.lastCheck.clean) { %><p class="form-error">Lokale Änderungen schützen diese Installation vor einem automatischen Update.</p><% } %>
+        </div>
+        <% if (updateState.lastCheck.available && updateState.lastCheck.clean) { %>
+          <form class="stack-form update-install-form" action="/settings/updates/install" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label class="check-label"><input type="checkbox" name="confirm_update" required><span>Release <%= updateState.lastCheck.tagName %> installieren und Tixaro danach neu starten</span></label>
+            <button class="button button-primary" type="submit">Release installieren</button>
+          </form>
+        <% } %>
+      <% } %>
+    <% } else { %>
+      <div class="form-error"><%= updateState?.reason || 'Die GitHub-Updatequelle ist nicht verfügbar.' %></div>
+      <p>Für UI-Updates muss Tixaro als Git-Installation mit einem GitHub-Remote betrieben werden. Container-Installationen werden über das Container-Deployment aktualisiert.</p>
+    <% } %>
+  </section>
+<% } %>
+
+<% if (section === 'queues') { %>
+  <div class="settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Queue-Struktur</h2></div><span class="config-total"><%= queues.filter(item => item.active).length %> aktiv</span></div>
+      <div class="config-list">
+        <% queues.forEach((queue, index) => { %>
+          <details class="config-item <%= queue.active ? '' : 'is-inactive' %>">
+            <summary>
+              <span class="config-code">Q<%= String(index + 1).padStart(2, '0') %></span>
+              <span class="config-identity"><strong><%= queue.name %></strong><small><%= queue.parent_name ? `Unterqueue von ${queue.parent_name}` : 'Hauptqueue' %> · <%= queue.ticket_count %> Tickets</small></span>
+              <span class="config-default"><small>Standard-SLA</small><strong><%= slaOptions.find(item => item.value === queue.default_sla_code)?.label || 'Nicht gesetzt' %></strong></span>
+              <span class="config-state <%= queue.active ? 'is-active' : '' %>"><%= queue.active ? 'Aktiv' : 'Inaktiv' %></span>
+              <span class="config-open">Bearbeiten</span>
+            </summary>
+            <div class="config-body">
+              <form class="config-edit-grid" action="/settings/queues/<%= queue.id %>/update" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <label>Name<input name="name" value="<%= queue.name %>" minlength="2" maxlength="80" required></label>
+                <label>Übergeordnete Queue<select name="parent_id"><option value="">Keine · Hauptqueue</option><% queueOptions.filter(item => item.id !== queue.id).forEach(item => { %><option value="<%= item.id %>" <%= queue.parent_id === item.id ? 'selected' : '' %>><%= item.name %><%= item.active ? '' : ' · inaktiv' %></option><% }) %></select></label>
+                <label>Standard-SLA<select name="default_sla_code"><option value="">Kein Standard</option><% slaOptions.forEach(item => { %><option value="<%= item.value %>" <%= queue.default_sla_code === item.value ? 'selected' : '' %>><%= item.label %><%= item.active ? '' : ' · inaktiv' %></option><% }) %></select></label>
+                <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="<%= queue.sort_order %>"></label>
+                <label class="field-full">Beschreibung<textarea name="description" rows="3" maxlength="1000"><%= queue.description || '' %></textarea></label>
+                <div class="config-form-actions field-full"><button class="button button-primary button-small" type="submit">Änderungen speichern</button><span><%= queue.child_count %> Unterqueues · <%= queue.ticket_count %> zugeordnete Tickets</span></div>
+              </form>
+              <form class="config-toggle" action="/settings/queues/<%= queue.id %>/toggle" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="link-button <%= queue.active ? 'link-danger' : '' %>" type="submit"><%= queue.active ? 'Queue deaktivieren' : 'Queue wieder aktivieren' %></button>
+              </form>
+            </div>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+
+    <aside class="panel config-create" id="settings-editor">
+      <div class="panel-header"><div><h2>Queue anlegen</h2></div></div>
+      <form class="stack-form" action="/settings/queues" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Name<input name="name" minlength="2" maxlength="80" placeholder="z. B. Vor-Ort-Service" required></label>
+        <label>Übergeordnete Queue<select name="parent_id"><option value="">Keine · Hauptqueue</option><% queueOptions.filter(item => item.active).forEach(item => { %><option value="<%= item.id %>"><%= item.name %></option><% }) %></select></label>
+        <label>Standard-SLA<select name="default_sla_code"><option value="">Kein Standard</option><% slaOptions.filter(item => item.active).forEach(item => { %><option value="<%= item.value %>"><%= item.label %></option><% }) %></select></label>
+        <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="100"></label>
+        <label>Beschreibung<textarea name="description" rows="4" maxlength="1000" placeholder="Welche Anliegen gehören in diese Queue?"></textarea></label>
+        <button class="button button-primary button-full" type="submit">Queue anlegen</button>
+      </form>
+    </aside>
+  </div>
+<% } %>
+
+<% if (section === 'ticket-types') { %>
+  <div class="settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Tickettypen</h2></div><span class="config-total"><%= ticketTypes.filter(item => item.active).length %> aktiv</span></div>
+      <div class="config-list">
+        <% ticketTypes.forEach((item, index) => { %>
+          <details class="config-item config-item-compact <%= item.active ? '' : 'is-inactive' %>">
+            <summary>
+              <span class="config-code">T<%= String(index + 1).padStart(2, '0') %></span>
+              <span class="config-identity"><strong><%= item.name %></strong><small><%= item.usage_count %> Tickets verwenden diesen Typ</small></span>
+              <span class="config-state <%= item.active ? 'is-active' : '' %>"><%= item.active ? 'Aktiv' : 'Inaktiv' %></span>
+              <span class="config-open">Bearbeiten</span>
+            </summary>
+            <div class="config-body">
+              <form class="config-edit-grid config-edit-short" action="/settings/ticket-types/<%= item.id %>/update" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <label>Name<input name="name" value="<%= item.name %>" minlength="2" maxlength="40" required></label>
+                <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="<%= item.sort_order %>"></label>
+                <div class="config-form-actions field-full"><button class="button button-primary button-small" type="submit">Speichern</button><span>Eine Umbenennung aktualisiert auch bestehende Tickets.</span></div>
+              </form>
+              <form class="config-toggle" action="/settings/ticket-types/<%= item.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= item.active ? 'link-danger' : '' %>" type="submit"><%= item.active ? 'Tickettyp deaktivieren' : 'Tickettyp aktivieren' %></button></form>
+            </div>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+    <aside class="panel config-create" id="settings-editor">
+      <div class="panel-header"><div><h2>Tickettyp anlegen</h2></div></div>
+      <form class="stack-form" action="/settings/ticket-types" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Name<input name="name" minlength="2" maxlength="40" placeholder="z. B. Bestellung" required></label>
+        <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="100"></label>
+        <button class="button button-primary button-full" type="submit">Tickettyp anlegen</button>
+      </form>
+    </aside>
+  </div>
+<% } %>
+
+<% if (section === 'sla') { %>
+  <div class="settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>SLA-Zeiten</h2></div><span class="config-total"><%= slaPolicies.filter(item => item.active).length %> aktiv</span></div>
+      <div class="config-list">
+        <% slaPolicies.forEach((item, index) => { %>
+          <details class="config-item <%= item.active ? '' : 'is-inactive' %>">
+            <summary>
+              <span class="config-code">S<%= String(index + 1).padStart(2, '0') %></span>
+              <span class="config-identity"><strong><%= item.name %></strong><small><%= item.queue_count %> Queues · <%= item.usage_count %> Tickets</small></span>
+              <span class="config-default"><small>Erstreaktion / Lösung</small><strong><%= Number(item.response_minutes) >= 60 ? `${Number(item.response_minutes) / 60} h` : `${item.response_minutes} min` %> · <%= Number(item.resolution_minutes) >= 60 ? `${Number(item.resolution_minutes) / 60} h` : `${item.resolution_minutes} min` %></strong></span>
+              <span class="config-state <%= item.active ? 'is-active' : '' %>"><%= item.active ? 'Aktiv' : 'Inaktiv' %></span>
+              <span class="config-open">Bearbeiten</span>
+            </summary>
+            <div class="config-body">
+              <form class="config-edit-grid" action="/settings/sla/<%= item.id %>/update" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <label>Name<input name="name" value="<%= item.name %>" minlength="2" maxlength="80" required></label>
+                <label>Erstreaktion in Minuten<input type="number" min="1" max="525600" name="response_minutes" value="<%= item.response_minutes %>" required></label>
+                <label>Lösung in Minuten<input type="number" min="1" max="525600" name="resolution_minutes" value="<%= item.resolution_minutes %>" required></label>
+                <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="<%= item.sort_order %>"></label>
+                <div class="config-form-actions field-full"><button class="button button-primary button-small" type="submit">Änderungen speichern</button><span>Technischer Schlüssel: <code><%= item.code %></code></span></div>
+              </form>
+              <form class="config-toggle" action="/settings/sla/<%= item.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= item.active ? 'link-danger' : '' %>" type="submit"><%= item.active ? 'SLA deaktivieren' : 'SLA aktivieren' %></button></form>
+            </div>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+    <aside class="panel config-create" id="settings-editor">
+      <div class="panel-header"><div><h2>SLA anlegen</h2></div></div>
+      <form class="stack-form" action="/settings/sla" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Name<input name="name" minlength="2" maxlength="80" placeholder="z. B. Vor-Ort Express" required></label>
+        <div class="form-grid">
+          <label>Erstreaktion<input type="number" min="1" max="525600" name="response_minutes" value="120" required><small>Minuten</small></label>
+          <label>Lösung<input type="number" min="1" max="525600" name="resolution_minutes" value="720" required><small>Minuten</small></label>
+        </div>
+        <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="100"></label>
+        <button class="button button-primary button-full" type="submit">SLA anlegen</button>
+      </form>
+    </aside>
+  </div>
+<% } %>
+
+<% if (section === 'asset-types') { %>
+  <div class="settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Ressourcenarten</h2></div><span class="config-total"><%= assetTypes.filter(item => item.active).length %> aktiv</span></div>
+      <div class="config-list">
+        <% assetTypes.forEach((item, index) => { %>
+          <details class="config-item config-item-compact <%= item.active ? '' : 'is-inactive' %>">
+            <summary>
+              <span class="config-code">A<%= String(index + 1).padStart(2, '0') %></span>
+              <span class="config-identity"><strong><%= item.name %></strong><small><%= item.usage_count %> Ressourcen dieser Art</small></span>
+              <span class="config-state <%= item.active ? 'is-active' : '' %>"><%= item.active ? 'Aktiv' : 'Inaktiv' %></span>
+              <span class="config-open">Bearbeiten</span>
+            </summary>
+            <div class="config-body">
+              <form class="config-edit-grid config-edit-short" action="/settings/asset-types/<%= item.id %>/update" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <label>Name<input name="name" value="<%= item.name %>" minlength="2" maxlength="80" required></label>
+                <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="<%= item.sort_order %>"></label>
+                <div class="config-form-actions field-full"><button class="button button-primary button-small" type="submit">Speichern</button><span>Eine Umbenennung aktualisiert bestehende Ressourcen.</span></div>
+              </form>
+              <form class="config-toggle" action="/settings/asset-types/<%= item.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= item.active ? 'link-danger' : '' %>" type="submit"><%= item.active ? 'Ressourcenart deaktivieren' : 'Ressourcenart aktivieren' %></button></form>
+            </div>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+    <aside class="panel config-create" id="settings-editor">
+      <div class="panel-header"><div><h2>Ressourcenart anlegen</h2></div></div>
+      <form class="stack-form" action="/settings/asset-types" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Name<input name="name" minlength="2" maxlength="80" placeholder="z. B. Firewall" required></label>
+        <label>Sortierung<input type="number" min="0" max="9999" name="sort_order" value="100"></label>
+        <button class="button button-primary button-full" type="submit">Ressourcenart anlegen</button>
+      </form>
+    </aside>
+  </div>
+<% } %>
+
+<% if (section === 'mail') { %>
+  <div class="mail-settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Verbundene Postfächer</h2><p><%= companyName %> erstellt aus neuen E-Mails automatisch Anfragen und versendet Antworten über dasselbe Postfach.</p></div><span class="config-total"><%= mailChannels.filter(item => item.active).length %> aktiv</span></div>
+      <% if (mailChannels.length) { %><div class="config-list">
+        <% mailChannels.forEach((channel, index) => { %>
+          <details class="config-item mail-config-item <%= channel.active ? '' : 'is-inactive' %>">
+            <summary>
+              <span class="config-code">M<%= String(index + 1).padStart(2, '0') %></span>
+              <span class="config-identity"><strong><%= channel.name %></strong><small><%= channel.email_address %> · <%= channel.queue_name || 'Standard-Queue' %></small></span>
+              <span class="config-default"><small>Eingang / Ausgang</small><strong><%= channel.inbound_type.toUpperCase() %> · <%= channel.outbound_type.toUpperCase() %></strong></span>
+              <span class="config-state <%= channel.active ? 'is-active' : '' %>"><%= channel.active ? 'Aktiv' : 'Inaktiv' %></span>
+              <span class="config-open">Bearbeiten</span>
+            </summary>
+            <div class="config-body mail-config-body">
+              <form class="mail-channel-form" action="/settings/mail/<%= channel.id %>/update" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <%- include('_mail-fields', { mailChannel: channel, isNew: false }) %>
+                <div class="mail-form-actions"><button class="button button-primary button-small" type="submit">Konfiguration speichern</button><span><%= channel.inbound_count %> importiert · <%= channel.outbound_count %> versendet</span></div>
+              </form>
+              <div class="mail-channel-actions">
+                <form action="/settings/mail/<%= channel.id %>/test" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary button-small" type="submit">Verbindung prüfen</button></form>
+                <% if (channel.inbound_type !== 'none') { %><form action="/settings/mail/<%= channel.id %>/fetch" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary button-small" type="submit">Jetzt abrufen</button></form><% } %>
+                <form action="/settings/mail/<%= channel.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= channel.active ? 'link-danger' : '' %>" type="submit"><%= channel.active ? 'Deaktivieren' : 'Aktivieren' %></button></form>
+              </div>
+              <div class="mail-health <%= channel.last_error ? 'has-error' : '' %>">
+                <strong><%= channel.last_error ? 'Letzter Abruf fehlgeschlagen' : channel.last_success_at ? 'Verbindung zuletzt erfolgreich' : 'Noch nicht geprüft' %></strong>
+                <span><%= channel.last_error || (channel.last_success_at ? formatDateTime(channel.last_success_at) : `Abruf alle ${channel.poll_interval_minutes} Minuten`) %></span>
+              </div>
+            </div>
+          </details>
+        <% }) %>
+      </div><% } else { %><div class="empty-state"><span>@</span><h3>Noch kein Postfach verbunden</h3><p>Wähle rechts deinen Anbieter. <%= companyName %> führt dich in drei kurzen Schritten durch die Einrichtung.</p></div><% } %>
+    </section>
+
+    <aside class="panel config-create mail-create" id="settings-editor">
+      <div class="panel-header"><div><p class="panel-kicker">Geführte Einrichtung</p><h2>Postfach verbinden</h2><p>Nur die Angaben deines Anbieters werden angezeigt.</p></div></div>
+      <form class="mail-channel-form" action="/settings/mail" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <%- include('_mail-fields', { mailChannel: {}, isNew: true }) %>
+        <button class="button button-primary button-full" type="submit">Postfach verbinden</button>
+      </form>
+    </aside>
+  </div>
+
+  <% if (mailEvents.length) { %><section class="panel mail-log-panel">
+    <div class="panel-header"><div><h2>Übertragungsprotokoll</h2><p>Letzte eingehende und ausgehende Nachrichten.</p></div></div>
+    <div class="table-scroll"><table class="history-table"><thead><tr><th>Zeit</th><th>Kanal</th><th>Richtung</th><th>Ticket</th><th>Betreff</th><th>Status</th></tr></thead><tbody>
+      <% mailEvents.forEach(event => { %><tr><td><%= formatDateTime(event.created_at) %></td><td><%= event.channel_name %></td><td><%= event.direction === 'inbound' ? 'Eingang' : 'Ausgang' %></td><td><%= event.ticket_number || '–' %></td><td><%= event.subject || '–' %></td><td><span class="mail-event-status status-<%= event.status %>"><%= event.status === 'imported' ? 'Importiert' : event.status === 'sent' ? 'Versendet' : event.status === 'failed' ? 'Fehler' : 'Übersprungen' %></span></td></tr><% }) %>
+    </tbody></table></div>
+  </section><% } %>
+<% } %>
+
+<% if (section === 'roles') { %>
+  <div class="settings-layout access-settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Berechtigungsrollen</h2></div><span class="config-total"><%= roles.filter(item => item.active).length %> aktiv</span></div>
+      <div class="config-list">
+        <% roles.forEach((role, index) => { %>
+          <details class="config-item access-item <%= role.active ? '' : 'is-inactive' %>">
+            <summary>
+              <span class="config-code">R<%= String(index + 1).padStart(2, '0') %></span>
+              <span class="config-identity"><strong><%= role.name %></strong><small><%= role.system_role ? 'Geschützte Systemrolle' : 'Eigene Rolle' %> · <%= role.permissionCodes.length %> Rechte</small></span>
+              <span class="config-default"><small>Zuweisungen</small><strong><%= role.userIds.length %> direkt · <%= role.groupCount %> Gruppen</strong></span>
+              <span class="config-state <%= role.active ? 'is-active' : '' %>"><%= role.active ? 'Aktiv' : 'Inaktiv' %></span>
+              <span class="config-open"><%= role.system_role ? 'Ansehen' : 'Bearbeiten' %></span>
+            </summary>
+            <div class="config-body">
+              <% if (role.system_role) { %>
+                <div class="system-role-info"><div><strong><%= role.description %></strong><small>Diese Rolle bildet das sichere Grundprofil „<%= role.code %>“ und wird automatisch mit bestehenden Konten synchronisiert.</small></div><span>Geschützt</span></div>
+                <div class="permission-read-list"><% permissions.filter(item => role.permissionCodes.includes(item.code)).forEach(permission => { %><span><b>✓</b><%= permission.name %></span><% }) %></div>
+              <% } else { %>
+                <form class="access-editor" action="/settings/roles/<%= role.id %>/update" method="post">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <div class="config-edit-grid config-edit-short"><label>Name<input name="name" value="<%= role.name %>" minlength="2" maxlength="120" required></label><label>Technischer Schlüssel<input value="<%= role.code %>" disabled></label><label class="field-full">Beschreibung<textarea name="description" rows="2" maxlength="1000"><%= role.description || '' %></textarea></label></div>
+                  <div class="access-section"><div><strong>Berechtigungen</strong><small>Alle aktivierten Rechte werden durch diese Rolle gewährt.</small></div>
+                    <% [...new Set(permissions.map(item => item.category))].forEach(category => { %><fieldset class="permission-group"><legend><%= category %></legend><div class="permission-grid"><% permissions.filter(item => item.category === category).forEach(permission => { %><label class="permission-option"><input type="checkbox" name="permissions" value="<%= permission.code %>" <%= role.permissionCodes.includes(permission.code) ? 'checked' : '' %>><span><strong><%= permission.name %></strong><small><%= permission.description %></small></span></label><% }) %></div></fieldset><% }) %>
+                  </div>
+                  <div class="access-section"><div><strong>Direkte Benutzerzuweisung</strong><small>Für Teamzuweisungen sind Gruppen meist übersichtlicher.</small></div><div class="member-grid"><% userRecords.forEach(user => { %><label><input type="checkbox" name="users" value="<%= user.id %>" <%= role.userIds.includes(user.id) ? 'checked' : '' %>><span><strong><%= user.name %></strong><small><%= user.email %></small></span></label><% }) %></div></div>
+                  <div class="config-form-actions"><button class="button button-primary button-small" type="submit">Rolle speichern</button><span>Änderungen gelten ab der nächsten Anfrage des Benutzers.</span></div>
+                </form>
+                <form class="config-toggle" action="/settings/roles/<%= role.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= role.active ? 'link-danger' : '' %>" type="submit"><%= role.active ? 'Rolle deaktivieren' : 'Rolle aktivieren' %></button></form>
+              <% } %>
+            </div>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+    <aside class="panel config-create" id="settings-editor"><div class="panel-header"><div><h2>Rolle anlegen</h2></div></div><form class="stack-form" action="/settings/roles" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Name<input name="name" minlength="2" maxlength="120" placeholder="z. B. First-Level-Support" required></label><label>Beschreibung<textarea name="description" rows="4" maxlength="1000" placeholder="Aufgaben und vorgesehener Personenkreis"></textarea></label><button class="button button-primary button-full" type="submit">Rolle anlegen</button></form></aside>
+  </div>
+<% } %>
+
+<% if (section === 'groups') { %>
+  <div class="settings-layout access-settings-layout">
+    <section class="panel config-panel">
+      <div class="panel-header"><div><h2>Benutzergruppen</h2></div><span class="config-total"><%= groups.filter(item => item.active).length %> aktiv</span></div>
+      <div class="config-list">
+        <% groups.forEach((group, index) => { %><details class="config-item access-item <%= group.active ? '' : 'is-inactive' %>"><summary><span class="config-code">G<%= String(index + 1).padStart(2, '0') %></span><span class="config-identity"><strong><%= group.name %></strong><small><%= group.userIds.length %> Mitglieder · <%= group.roleIds.length %> Rollen</small></span><span class="config-default"><small>Queue-Zugriffe</small><strong><%= Object.keys(group.queuePermissions).length %> Queues</strong></span><span class="config-state <%= group.active ? 'is-active' : '' %>"><%= group.active ? 'Aktiv' : 'Inaktiv' %></span><span class="config-open">Bearbeiten</span></summary>
+          <div class="config-body"><form class="access-editor" action="/settings/groups/<%= group.id %>/update" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="config-edit-grid config-edit-short"><label>Name<input name="name" value="<%= group.name %>" minlength="2" maxlength="120" required></label><label class="field-full">Beschreibung<textarea name="description" rows="2" maxlength="1000"><%= group.description || '' %></textarea></label></div>
+            <div class="access-section"><div><strong>Mitglieder</strong><small>Benutzer können mehreren Gruppen angehören.</small></div><div class="member-grid"><% userRecords.forEach(user => { %><label><input type="checkbox" name="users" value="<%= user.id %>" <%= group.userIds.includes(user.id) ? 'checked' : '' %>><span><strong><%= user.name %></strong><small><%= user.email %></small></span></label><% }) %></div></div>
+            <div class="access-section"><div><strong>Rollen der Gruppe</strong><small>Alle Mitglieder erben die ausgewählten Rollen.</small></div><div class="role-choice-grid"><% roles.filter(role => role.active).forEach(role => { %><label><input type="checkbox" name="roles" value="<%= role.id %>" <%= group.roleIds.includes(role.id) ? 'checked' : '' %>><span><strong><%= role.name %></strong><small><%= role.permissionCodes.length %> Berechtigungen</small></span></label><% }) %></div></div>
+            <div class="access-section"><div><strong>Queue-Zugriffe</strong><small>„Lesen“ zeigt Tickets, „Bearbeiten“ erlaubt operative Änderungen – sofern die Rolle das Ticketrecht gewährt.</small></div><div class="queue-access-list"><% queues.forEach(queue => { %><label><span><strong><%= queue.name %></strong><small><%= queue.parent_name ? `Unterqueue von ${queue.parent_name}` : 'Hauptqueue' %></small></span><select name="queue_<%= queue.id %>"><option value="">Kein Zugriff</option><option value="read" <%= group.queuePermissions[queue.id] === 'read' ? 'selected' : '' %>>Lesen</option><option value="write" <%= group.queuePermissions[queue.id] === 'write' ? 'selected' : '' %>>Bearbeiten</option></select></label><% }) %></div></div>
+            <div class="config-form-actions"><button class="button button-primary button-small" type="submit">Gruppe speichern</button><span>Gruppenrechte werden mit direkten Rollen kombiniert.</span></div>
+          </form><form class="config-toggle" action="/settings/groups/<%= group.id %>/toggle" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="link-button <%= group.active ? 'link-danger' : '' %>" type="submit"><%= group.active ? 'Gruppe deaktivieren' : 'Gruppe aktivieren' %></button></form></div></details><% }) %>
+        <% if (!groups.length) { %><div class="access-empty"><strong>Noch keine Gruppen</strong><p>Lege ein Team an und weise anschließend Mitglieder, Rollen und Queues zu.</p></div><% } %>
+      </div>
+    </section>
+    <aside class="panel config-create" id="settings-editor"><div class="panel-header"><div><h2>Gruppe anlegen</h2></div></div><form class="stack-form" action="/settings/groups" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><label>Name<input name="name" minlength="2" maxlength="120" placeholder="z. B. Netzwerk-Team" required></label><label>Beschreibung<textarea name="description" rows="4" maxlength="1000" placeholder="Aufgabe oder Zuständigkeitsbereich"></textarea></label><button class="button button-primary button-full" type="submit">Gruppe anlegen</button></form></aside>
+  </div>
+<% } %>
+
+<% if (section === 'appearance') { %>
+  <div class="appearance-settings">
+    <section class="panel brand-name-panel">
+      <div class="panel-header"><div><p class="panel-kicker">Marke</p><h2>Firmenname</h2><p>Dieser Name ersetzt die Standardbezeichnung in der gesamten Anwendung.</p></div></div>
+      <form class="brand-name-form" action="/settings/appearance/brand" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Firmenname<input name="company_name" value="<%= companyName %>" minlength="2" maxlength="80" required></label>
+        <button class="button button-primary" type="submit">Namen speichern</button>
+      </form>
+      <% if (hasCustomBrandName) { %><form class="brand-name-reset" action="/settings/appearance/brand/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary button-small" type="submit">Standardnamen wiederherstellen</button></form><% } %>
+    </section>
+    <section class="panel brand-logo-panel">
+      <div class="panel-header"><div><p class="panel-kicker">Logo</p><h2>Firmenlogo</h2><p>Quadratische und breite Logos werden vollständig und ohne runden Zuschnitt dargestellt.</p></div><span class="config-total"><%= hasCustomLogo ? 'Eigenes Logo' : 'Standardlogo' %></span></div>
+      <div class="brand-logo-settings">
+        <div class="brand-logo-preview"><img src="/brand-logo?v=<%= brandLogoVersion %>" alt="Aktuelles Logo"><span><strong>Aktuelles Logo</strong><small><%= hasCustomLogo ? 'Individuell hinterlegt' : 'Standardlogo' %></small></span></div>
+        <form class="brand-logo-form" action="/settings/appearance/logo" method="post" data-logo-form>
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="logo_data" data-logo-data>
+          <label class="logo-dropzone"><input type="file" accept="image/png,image/jpeg,image/webp" data-logo-file><span><strong>Eigenes Logo auswählen</strong><small>Querformat oder quadratisch · PNG, JPG oder WebP · maximal 1,5 MB</small></span></label>
+          <div class="logo-upload-actions"><span data-logo-status>Keine Datei ausgewählt</span><button class="button button-primary button-small" type="submit" disabled data-logo-submit>Logo speichern</button></div>
+        </form>
+        <% if (hasCustomLogo) { %><form action="/settings/appearance/logo/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary button-small" type="submit">Standardlogo wiederherstellen</button></form><% } %>
+      </div>
+    </section>
+    <section class="panel appearance-panel"><div class="panel-header"><div><p class="panel-kicker">Farbwelt</p><h2>Systemfarben</h2><p>Akzent-, Flächen- und Navigationsfarben für die eigene Marke.</p></div><span class="config-total">7 Farbwerte</span></div>
+      <form action="/settings/appearance" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><div class="color-selector-grid">
+        <% [{key:'accent',label:'Akzent',help:'Schaltflächen und Hervorhebungen'},{key:'accentDark',label:'Akzent dunkel',help:'Hover und Kontrast'},{key:'sage',label:'Sekundärfarbe',help:'Ruhige Statusflächen'},{key:'canvas',label:'Seitenhintergrund',help:'Grundfläche der Anwendung'},{key:'surface',label:'Kartenfläche',help:'Panels und Formulare'},{key:'sidebar',label:'Navigation',help:'Hintergrund der Seitenleiste'},{key:'sidebarText',label:'Navigationstext',help:'Text und Symbole in der Seitenleiste'}].forEach(color => { %>
+          <label class="color-selector"><input type="color" name="<%= color.key %>" value="<%= appearance[color.key] %>"><span><strong><%= color.label %></strong><small><%= color.help %></small><code><%= appearance[color.key] %></code></span></label>
+        <% }) %>
+      </div><div class="appearance-actions"><button class="button button-primary" type="submit">Farben speichern</button></div></form>
+      <form class="appearance-reset" action="/settings/appearance/reset" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary" type="submit">Standardfarben wiederherstellen</button></form>
+    </section>
+  </div>
+<% } %>
+  </section>
+</div>

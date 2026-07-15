@@ -1,33 +1,17 @@
 <% layout('layout') -%>
 <section class="login-card">
   <div class="login-brand">
-    <span class="brand-mark brand-mark-large">T</span>
-    <div><strong>Tixaro</strong><span>Tickets, die vorankommen.</span></div>
+    <img class="brand-mark brand-mark-large" src="/brand-logo" alt="">
+    <div><strong><%= companyName %></strong><span>Service Desk</span></div>
   </div>
   <div class="login-copy">
-    <p class="eyebrow">Willkommen zurück</p>
-    <h1>Bei <%= companyName %> anmelden</h1>
-    <p>Verwalte Anfragen, Zuständigkeiten und Lösungen an einem zentralen Ort.</p>
+    <h1>Anmelden</h1>
   </div>
   <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
   <form class="stack-form" action="/login" method="post">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>E-Mail-Adresse<input type="email" name="email" value="<%= email %>" autocomplete="username" required autofocus></label>
     <label>Passwort<input type="password" name="password" autocomplete="current-password" required></label>
-    <button class="button button-primary button-full" type="submit">Sicher anmelden <span>→</span></button>
+    <button class="button button-primary button-full" type="submit">Anmelden</button>
   </form>
-  <p class="login-note">Dein Konto wird durch einen Administrator verwaltet.</p>
 </section>
-<aside class="login-visual" aria-hidden="true">
-  <div class="visual-orb visual-orb-one"></div>
-  <div class="visual-orb visual-orb-two"></div>
-  <div class="visual-content">
-    <span class="live-pill"><i></i> Servicezentrale online</span>
-    <h2>Support, der sich<br>nach Fortschritt anfühlt.</h2>
-    <p>Prioritäten erkennen. Verantwortung klären. Kunden und Kollegen zuverlässig informieren.</p>
-    <div class="visual-ticket">
-      <span class="ticket-check">✓</span>
-      <div><small>TIX-2026-000128</small><strong>Zugriff für neues Teammitglied</strong><span>Gelöst in 18 Minuten</span></div>
-    </div>
-  </div>
-</aside>

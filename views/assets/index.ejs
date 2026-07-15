@@ -1,0 +1,44 @@
+<% layout('layout') -%>
+<% if (currentUser.role === 'requester') { %>
+<header class="workbench-heading portal-list-heading"><div><p class="eyebrow">Kundenportal</p><h1>Meine Geräte</h1><p>Alle Geräte und Ressourcen, die dir aktuell zugeordnet sind.</p></div><a class="button button-primary" href="/tickets/new">Anfrage stellen</a></header>
+<section class="panel portal-assets-panel">
+  <% if (assets.length) { %><div class="portal-asset-grid"><% assets.forEach(asset => { %><a href="/assets/<%= asset.id %>" class="portal-asset-card">
+    <span class="portal-device-icon"><%= asset.asset_type === 'Notebook' ? 'NB' : asset.asset_type === 'Computer' ? 'PC' : asset.asset_type === 'Smartphone' ? 'SP' : asset.asset_type === 'Softwarelizenz' ? 'SW' : 'IT' %></span>
+    <span><strong><%= asset.name %></strong><small><%= asset.asset_number %> · <%= asset.asset_type %></small></span>
+    <span class="asset-status asset-status-<%= asset.status %>"><%= assetStatusLabel(asset.status) %></span>
+    <dl><div><dt>Hersteller</dt><dd><%= asset.manufacturer || '–' %> <%= asset.model || '' %></dd></div><div><dt>Seriennummer</dt><dd><%= asset.serial_number || 'Nicht hinterlegt' %></dd></div><div><dt>Standort</dt><dd><%= asset.location || 'Nicht hinterlegt' %></dd></div></dl>
+    <b>Details ansehen →</b>
+  </a><% }) %></div><% } else { %><div class="portal-empty"><span>IT</span><strong>Noch keine Geräte zugeordnet</strong><p>Sobald dir ein Gerät zugeordnet wurde, erscheint es automatisch an dieser Stelle.</p><a class="button button-primary" href="/tickets/new">Support kontaktieren</a></div><% } %>
+</section>
+<% } else { %>
+<header class="workbench-heading">
+  <div><h1>Ressourcen</h1><p>Geräte, Lizenzen und weitere Objekte.</p></div>
+  <% if (can('assets.manage')) { %><a class="button button-primary" href="/assets/new">Ressource anlegen</a><% } %>
+</header>
+
+<section class="panel">
+  <form class="filter-bar" action="/assets" method="get">
+    <label class="search-field"><span>⌕</span><input type="search" name="q" value="<%= filters.q %>" placeholder="Inventarnummer, Name, Seriennummer oder Kunde …"></label>
+    <label><span>Typ</span><select name="type"><option value="">Alle Typen</option><% assetTypes.forEach(value => { %><option value="<%= value %>" <%= filters.type === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label><span>Status</span><select name="status"><option value="">Alle Status</option><% assetStatuses.forEach(value => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= assetStatusLabel(value) %></option><% }) %></select></label>
+    <button class="button button-secondary" type="submit">Filtern</button>
+    <% if (filters.q || filters.type || filters.status) { %><a class="text-link" href="/assets">Zurücksetzen</a><% } %>
+  </form>
+  <div class="result-count"><strong><%= assets.length %></strong> Ressourcen gefunden</div>
+  <% if (assets.length) { %>
+    <div class="asset-list">
+      <% assets.forEach(asset => { %>
+        <a class="asset-row asset-row-large" href="/assets/<%= asset.id %>">
+          <span class="asset-icon"><%= asset.asset_type === 'Notebook' ? 'NB' : asset.asset_type === 'Computer' ? 'PC' : asset.asset_type === 'Smartphone' ? 'SP' : asset.asset_type === 'Softwarelizenz' ? 'SW' : 'IT' %></span>
+          <span class="asset-identity"><strong><%= asset.name %></strong><small><%= asset.asset_number %> · <%= asset.asset_type %></small></span>
+          <span class="asset-meta"><strong><%= asset.customer_name || 'Ohne Kunde' %></strong><small><%= asset.assigned_user_name || 'Nicht zugewiesen' %></small></span>
+          <span class="asset-meta"><strong><%= asset.manufacturer || '–' %> <%= asset.model || '' %></strong><small><%= asset.serial_number || 'Keine Seriennummer' %></small></span>
+          <span class="asset-meta"><strong><%= asset.ticket_count %></strong><small>verknüpfte Tickets</small></span>
+          <span class="asset-status asset-status-<%= asset.status %>"><%= assetStatusLabel(asset.status) %></span>
+          <span class="card-arrow">→</span>
+        </a>
+      <% }) %>
+    </div>
+  <% } else { %><div class="empty-state"><span>–</span><h3>Keine Ressourcen gefunden</h3><p>Lege ein Gerät an oder passe die Filter an.</p></div><% } %>
+</section>
+<% } %>

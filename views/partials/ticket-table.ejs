@@ -1,20 +1,21 @@
 <div class="table-wrap">
   <table class="ticket-table">
-    <thead><tr><th>Ticket</th><th>Status</th><th>Priorität</th><th>Anfragende Person</th><th>Zuständig</th><th>Aktualisiert</th></tr></thead>
+    <thead><tr><th>Ticket</th><th>Queue</th><th>Status</th><th>SLA</th><th>Priorität</th><th>Zuständig</th><th>Aktualisiert</th></tr></thead>
     <tbody>
       <% tickets.forEach(ticket => { %>
         <tr>
-          <td><a class="ticket-link" href="/tickets/<%= ticket.id %>"><strong><%= ticket.ticket_number %></strong><span><%= ticket.subject %></span></a></td>
-          <td><span class="badge badge-status-<%= ticket.status %>"><i></i><%= statusLabel(ticket.status) %></span></td>
+          <td><a class="ticket-link" href="/tickets/<%= ticket.id %>"><strong><%= ticket.ticket_number %></strong><span><%= ticket.subject %></span><small><%= ticket.requester_name %></small></a></td>
+          <td><span class="queue-name"><%= ticket.category %></span><small class="ticket-type"><%= ticket.ticket_type || 'Anfrage' %></small></td>
+          <td><span class="badge badge-status-<%= ticket.status %>"><%= statusLabel(ticket.status) %></span></td>
+          <td><span class="sla-chip sla-<%= slaState(ticket) %>"><%= slaLabel(ticket.sla || 'standard') %></span></td>
           <td><span class="priority priority-<%= ticket.priority %>"><%= priorityLabel(ticket.priority) %></span></td>
-          <td><%= ticket.requester_name %></td>
-          <td><%= ticket.assignee_name || 'Nicht zugewiesen' %></td>
+          <td><span class="assignee-cell <%= ticket.assignee_name ? '' : 'is-unassigned' %>"><% if (ticket.assignee_name) { %><i><%= initials(ticket.assignee_name) %></i><% } %><%= ticket.assignee_name || 'Nicht zugewiesen' %></span></td>
           <td><%= formatDate(ticket.updated_at) %></td>
         </tr>
       <% }) %>
     </tbody>
   </table>
   <% if (!tickets.length) { %>
-    <div class="empty-state"><span>✓</span><h3>Alles erledigt</h3><p>Für diese Auswahl wurden keine Tickets gefunden.</p></div>
+    <div class="empty-state"><h3>Keine Tickets</h3><p>Für diese Queue oder Auswahl sind keine Vorgänge vorhanden.</p></div>
   <% } %>
 </div>

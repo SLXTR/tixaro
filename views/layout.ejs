@@ -3,59 +3,111 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111827">
+  <meta name="theme-color" content="#101828">
   <title><%= title ? `${title} · ${companyName}` : companyName %></title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/brand-logo">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <script src="/vendor/leaflet/leaflet.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
-<body class="<%= currentUser ? 'app-body' : 'auth-body' %>">
+<% const isCustomerPortal = currentUser?.role === 'requester'; %>
+<body class="<%= currentUser ? `app-body${isCustomerPortal ? ' customer-portal-body' : ''}` : 'auth-body' %>">
   <% if (currentUser) { %>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
-        <a class="brand" href="/" aria-label="<%= companyName %> Dashboard">
-          <span class="brand-mark">T</span>
-          <span><strong>Tixaro</strong><small><%= companyName %></small></span>
+        <a class="brand" href="<%= isCustomerPortal ? '/portal' : '/' %>" aria-label="<%= companyName %> <%= isCustomerPortal ? 'Kundenportal' : 'Übersicht' %>">
+          <img class="brand-mark" src="/brand-logo" alt="">
+          <span><strong><%= companyName %></strong><small><%= isCustomerPortal ? 'Kundenportal' : 'Service Desk' %></small></span>
         </a>
         <nav class="nav" aria-label="Hauptnavigation">
-          <a class="nav-link <%= currentPath === '/' ? 'is-active' : '' %>" href="/">
-            <span class="nav-icon">⌂</span><span>Dashboard</span>
+          <% if (isCustomerPortal) { %>
+          <a class="nav-link <%= currentPath === '/portal' ? 'is-active' : '' %>" href="/portal">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>Übersicht</span>
           </a>
           <a class="nav-link <%= currentPath.startsWith('/tickets') && currentPath !== '/tickets/new' ? 'is-active' : '' %>" href="/tickets">
-            <span class="nav-icon">▤</span><span>Tickets</span>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/></svg><span>Meine Anfragen</span>
           </a>
           <a class="nav-link <%= currentPath === '/tickets/new' ? 'is-active' : '' %>" href="/tickets/new">
-            <span class="nav-icon">＋</span><span>Neues Ticket</span>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Neue Anfrage</span>
           </a>
-          <% if (currentUser.role === 'admin') { %>
-            <span class="nav-section">Verwaltung</span>
-            <a class="nav-link <%= currentPath.startsWith('/users') ? 'is-active' : '' %>" href="/users">
-              <span class="nav-icon">♙</span><span>Benutzer</span>
+          <a class="nav-link <%= currentPath.startsWith('/assets') ? 'is-active' : '' %>" href="/assets">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H4zM9 20h6M12 16v4"/></svg><span>Meine Geräte</span>
+          </a>
+          <% } else { %>
+          <a class="nav-link <%= currentPath === '/' ? 'is-active' : '' %>" href="/">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>Übersicht</span>
+          </a>
+          <% if (can('statistics.view')) { %><a class="nav-link <%= currentPath.startsWith('/statistics') ? 'is-active' : '' %>" href="/statistics">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Statistiken</span>
+          </a><% } %>
+          <% if (can('tickets.view_own') || can('tickets.view_all') || hasQueueAccess) { %><a class="nav-link <%= currentPath.startsWith('/tickets') && currentPath !== '/tickets/new' ? 'is-active' : '' %>" href="/tickets">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/></svg><span>Tickets</span>
+          </a><% } %>
+          <span class="nav-section">Beziehungen</span>
+          <% if (can('customers.view')) { %>
+            <a class="nav-link <%= currentPath.startsWith('/customers') ? 'is-active' : '' %>" href="/customers">
+              <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.5 10a2.5 2.5 0 1 0 0-5M3 19c0-3.1 2.5-5 5.5-5s5.5 1.9 5.5 5M14 14c3.2 0 6 1.6 6 5"/></svg><span>Kunden</span>
             </a>
+          <% } %>
+          <% if (can('assets.view')) { %><a class="nav-link <%= currentPath.startsWith('/assets') ? 'is-active' : '' %>" href="/assets">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H4zM9 20h6M12 16v4"/></svg><span>Ressourcen</span>
+          </a><% } %>
+          <% if (can('users.manage') || can('settings.manage') || can('roles.manage') || can('groups.manage') || can('appearance.manage')) { %>
+            <span class="nav-section">Verwaltung</span>
+            <% if (can('users.manage')) { %><a class="nav-link <%= currentPath.startsWith('/users') ? 'is-active' : '' %>" href="/users">
+              <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5"/></svg><span>Benutzer</span>
+            </a><% } %>
+            <% if (can('settings.manage') || can('roles.manage') || can('groups.manage') || can('appearance.manage')) { %><a class="nav-link <%= currentPath.startsWith('/settings') ? 'is-active' : '' %>" href="/settings">
+              <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6"/></svg><span>Einstellungen</span>
+            </a><% } %>
+          <% } %>
           <% } %>
         </nav>
         <div class="sidebar-footer">
-          <a class="user-card" href="/account">
-            <span class="avatar"><%= initials(currentUser.name) %></span>
-            <span class="user-meta"><strong><%= currentUser.name %></strong><small><%= roleLabel(currentUser.role) %></small></span>
-          </a>
-          <form action="/logout" method="post">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button class="logout-button" type="submit" title="Abmelden" aria-label="Abmelden">↗</button>
-          </form>
+          <details class="user-menu">
+            <summary class="user-card">
+              <span class="avatar"><%= initials(currentUser.name) %></span>
+              <span class="user-meta"><strong><%= currentUser.name %></strong><small><%= roleLabel(currentUser.role) %></small></span>
+              <span class="user-menu-chevron" aria-hidden="true">⌃</span>
+            </summary>
+            <div class="user-menu-popover">
+              <div class="user-menu-heading"><strong><%= currentUser.name %></strong><small><%= currentUser.email %></small></div>
+              <a class="user-menu-action" href="/account"><span>Eigene Einstellungen</span><b>→</b></a>
+              <form action="/logout" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="user-menu-action user-menu-logout" type="submit"><span>Abmelden</span><b>↗</b></button>
+              </form>
+            </div>
+          </details>
         </div>
       </aside>
       <div class="sidebar-backdrop" data-sidebar-close></div>
       <div class="main-column">
         <header class="topbar">
-          <button class="menu-button" type="button" data-sidebar-toggle aria-controls="sidebar" aria-expanded="false">☰</button>
-          <div>
-            <p class="eyebrow"><%= companyName %></p>
+          <button class="menu-button" type="button" data-sidebar-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Navigation öffnen">Menü</button>
+          <div class="topbar-context">
             <strong><%= title %></strong>
           </div>
-          <a class="topbar-action" href="/tickets/new">＋ Ticket</a>
+          <% if (can('tickets.view_own') || can('tickets.view_all') || hasQueueAccess) { %>
+            <form class="global-search" action="/tickets" method="get" role="search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+              <input type="search" name="q" aria-label="Tickets durchsuchen" placeholder="<%= isCustomerPortal ? 'Meine Anfragen durchsuchen …' : 'Tickets durchsuchen …' %>">
+              <kbd>/</kbd>
+            </form>
+          <% } %>
+          <div class="topbar-actions">
+            <% if (can('tickets.create')) { %><a class="topbar-action" href="/tickets/new"><span>+</span> <%= isCustomerPortal ? 'Anfrage' : 'Ticket' %></a><% } %>
+          </div>
         </header>
         <main class="main-content">
+          <% if (portalPreview) { %>
+            <div class="portal-preview-banner" role="status">
+              <span><strong>Portalvorschau</strong><small>Ansicht von <%= currentUser.name %> · gestartet durch <%= portalPreview.admin.name %></small></span>
+              <form action="/users/preview/stop" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit">Zur Admin-Ansicht</button></form>
+            </div>
+          <% } %>
           <% if (flash) { %>
             <div class="flash flash-<%= flash.type %>" role="status">
               <span><%= flash.type === 'success' ? '✓' : '!' %></span>

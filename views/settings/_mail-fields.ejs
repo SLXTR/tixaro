@@ -1,0 +1,63 @@
+<% const connectionMode = mailChannel.connectionMode || (isNew ? 'graph' : 'custom'); %>
+<section class="mail-wizard-step">
+  <span class="mail-step-number">1</span>
+  <div class="mail-step-content"><div class="mail-step-heading"><strong>Postfach</strong><small>Name, Adresse und Ziel für neue Tickets</small></div>
+    <div class="mail-field-grid">
+      <label>Name<input name="name" value="<%= mailChannel.name || '' %>" minlength="2" maxlength="120" placeholder="z. B. Support" required></label>
+      <label>E-Mail-Adresse<input type="email" name="email_address" value="<%= mailChannel.email_address || '' %>" placeholder="support@example.com" required></label>
+      <label>Ziel-Queue<select name="queue_id"><option value="">Erste aktive Queue</option><% queueOptions.filter(item => item.active).forEach(queue => { %><option value="<%= queue.id %>" <%= String(mailChannel.queue_id || '') === String(queue.id) ? 'selected' : '' %>><%= queue.name %></option><% }) %></select></label>
+      <label class="mail-active-option"><input type="checkbox" name="active" <%= isNew || mailChannel.active ? 'checked' : '' %>><span><strong>Kanal aktiv</strong><small>Nach erfolgreicher Einrichtung automatisch verwenden</small></span></label>
+    </div>
+  </div>
+</section>
+
+<section class="mail-wizard-step">
+  <span class="mail-step-number">2</span>
+  <div class="mail-step-content"><div class="mail-step-heading"><strong>Wie ist das Postfach angebunden?</strong><small>Wähle den passenden Anbieter – <%= companyName %> setzt die technischen Werte automatisch.</small></div>
+    <div class="mail-mode-grid" data-mail-mode-grid>
+      <label><input type="radio" name="connection_mode" value="graph" <%= connectionMode === 'graph' ? 'checked' : '' %>><span class="mail-mode-icon">M</span><span><strong>Microsoft 365</strong><small>Shared Mailbox über Graph</small><b>Empfohlen</b></span></label>
+      <label><input type="radio" name="connection_mode" value="imap_smtp" <%= connectionMode === 'imap_smtp' ? 'checked' : '' %>><span class="mail-mode-icon">@</span><span><strong>Klassisches Postfach</strong><small>Empfangen per IMAP, senden per SMTP</small></span></label>
+      <label><input type="radio" name="connection_mode" value="pop3_smtp" <%= connectionMode === 'pop3_smtp' ? 'checked' : '' %>><span class="mail-mode-icon">↓</span><span><strong>POP3-Postfach</strong><small>POP3-Abruf mit SMTP-Versand</small></span></label>
+      <label><input type="radio" name="connection_mode" value="smtp_only" <%= connectionMode === 'smtp_only' ? 'checked' : '' %>><span class="mail-mode-icon">→</span><span><strong>Nur versenden</strong><small>Ausgehende Antworten per SMTP</small></span></label>
+      <% if (!isNew || connectionMode === 'custom') { %><label><input type="radio" name="connection_mode" value="custom" <%= connectionMode === 'custom' ? 'checked' : '' %>><span class="mail-mode-icon">••</span><span><strong>Individuell</strong><small>Ein- und Ausgang getrennt festlegen</small></span></label><% } %>
+    </div>
+  </div>
+</section>
+
+<section class="mail-wizard-step">
+  <span class="mail-step-number">3</span>
+  <div class="mail-step-content"><div class="mail-step-heading"><strong>Zugangsdaten</strong><small data-mail-credential-help>App-Daten der Microsoft-365-Registrierung</small></div>
+    <div class="mail-graph-fields" data-mail-graph>
+      <div class="mail-info-banner"><span>i</span><p><strong>Microsoft Graph für Shared Mailboxes</strong>Du brauchst Tenant-ID, Client-ID und ein Client-Secret. Die Mailbox-Adresse wird aus Schritt 1 übernommen.</p></div>
+      <div class="mail-field-grid">
+        <label>Tenant-ID<input name="graph_tenant_id" value="<%= mailChannel.graph_tenant_id || '' %>" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label>
+        <label>Client-ID<input name="graph_client_id" value="<%= mailChannel.graph_client_id || '' %>" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></label>
+        <label class="field-full">Client-Secret<input type="password" name="graph_client_secret" autocomplete="new-password" placeholder="<%= mailChannel.hasGraphSecret ? 'Gespeichert · nur zum Ändern ausfüllen' : 'Client-Secret eintragen' %>"></label>
+      </div>
+    </div>
+
+    <div class="mail-server-fields" data-mail-server>
+      <div class="mail-field-grid">
+        <div data-mail-inbound-fields><label>Eingangsserver<input name="inbound_host" value="<%= mailChannel.inbound_host || '' %>" placeholder="imap.example.com"></label></div>
+        <div data-mail-outbound-fields><label>Ausgangsserver<input name="outbound_host" value="<%= mailChannel.outbound_host || '' %>" placeholder="smtp.example.com"></label></div>
+        <div data-mail-inbound-fields><label>Benutzername Eingang<input name="inbound_username" value="<%= mailChannel.inbound_username || '' %>" autocomplete="off" placeholder="Leer = E-Mail-Adresse"></label></div>
+        <div data-mail-outbound-fields><label>Benutzername Ausgang<input name="outbound_username" value="<%= mailChannel.outbound_username || '' %>" autocomplete="off" placeholder="Leer = E-Mail-Adresse"></label></div>
+        <label class="field-full">Passwort<input type="password" name="mail_password" autocomplete="new-password" placeholder="<%= mailChannel.hasInboundSecret || mailChannel.hasOutboundSecret ? 'Gespeichert · nur zum Ändern ausfüllen' : 'Postfach-Passwort' %>"></label>
+      </div>
+    </div>
+
+    <details class="mail-advanced" data-mail-advanced>
+      <summary>Weitere Einstellungen</summary>
+      <div class="mail-advanced-grid">
+        <label>Abrufintervall<input type="number" name="poll_interval_minutes" min="1" max="1440" value="<%= mailChannel.poll_interval_minutes || 5 %>"><small>Minuten</small></label>
+        <label data-mail-custom>Protokoll Eingang<select name="inbound_type" data-mail-inbound-select><option value="none" <%= mailChannel.inbound_type === 'none' ? 'selected' : '' %>>Kein Abruf</option><option value="imap" <%= (mailChannel.inbound_type || 'imap') === 'imap' ? 'selected' : '' %>>IMAP</option><option value="pop3" <%= mailChannel.inbound_type === 'pop3' ? 'selected' : '' %>>POP3</option><option value="graph" <%= mailChannel.inbound_type === 'graph' ? 'selected' : '' %>>Microsoft Graph</option></select></label>
+        <label data-mail-custom>Protokoll Ausgang<select name="outbound_type" data-mail-outbound-select><option value="none" <%= mailChannel.outbound_type === 'none' ? 'selected' : '' %>>Kein Versand</option><option value="smtp" <%= (mailChannel.outbound_type || 'smtp') === 'smtp' ? 'selected' : '' %>>SMTP</option><option value="graph" <%= mailChannel.outbound_type === 'graph' ? 'selected' : '' %>>Microsoft Graph</option></select></label>
+        <label data-mail-inbound-fields>Port Eingang<input type="number" name="inbound_port" min="1" max="65535" value="<%= mailChannel.inbound_port || '' %>" placeholder="automatisch"></label>
+        <label data-mail-outbound-fields>Port Ausgang<input type="number" name="outbound_port" min="1" max="65535" value="<%= mailChannel.outbound_port || '' %>" placeholder="automatisch"></label>
+        <label data-mail-graph>Abweichende Shared Mailbox<input type="email" name="graph_mailbox" value="<%= mailChannel.graph_mailbox || '' %>" placeholder="Leer = E-Mail-Adresse"></label>
+        <label class="mail-active-option" data-mail-inbound-fields><input type="checkbox" name="inbound_secure" <%= isNew || mailChannel.inbound_secure ? 'checked' : '' %>><span><strong>TLS/SSL Eingang</strong><small>Üblicherweise aktiviert</small></span></label>
+        <label class="mail-active-option" data-mail-outbound-fields><input type="checkbox" name="outbound_secure" <%= mailChannel.outbound_secure ? 'checked' : '' %>><span><strong>Implizites TLS Ausgang</strong><small>Nur für Port 465; Port 587 nutzt STARTTLS</small></span></label>
+      </div>
+    </details>
+  </div>
+</section>

@@ -3,18 +3,19 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { rateLimit } from "express-rate-limit";
 
-export function authRouter({ pool }) {
+export function authRouter({ pool, config }) {
   const router = express.Router();
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    skip: () => config.nodeEnv === "test",
     message: "Zu viele Anmeldeversuche. Bitte warte 15 Minuten."
   });
 
   router.get("/login", (req, res) => {
-    if (req.user) return res.redirect("/");
+    if (req.user) return res.redirect(req.user.role === "requester" ? "/portal" : "/");
     res.render("login", { title: "Anmelden", error: null, email: "" });
   });
 
@@ -33,7 +34,7 @@ export function authRouter({ pool }) {
       req.session.userId = user.id;
       req.session.csrfToken = crypto.randomBytes(32).toString("hex");
       pool.query("UPDATE users SET last_login_at = NOW() WHERE id = $1", [user.id]).catch(console.error);
-      res.redirect("/");
+      res.redirect(user.role === "requester" ? "/portal" : "/");
     });
   });
 

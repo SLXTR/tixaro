@@ -3,55 +3,172 @@
   <div>
     <div class="ticket-kicker"><a href="/tickets">Tickets</a><span>/</span><strong><%= ticket.ticket_number %></strong></div>
     <h1><%= ticket.subject %></h1>
-    <div class="ticket-heading-meta"><span class="badge badge-status-<%= ticket.status %>"><i></i><%= statusLabel(ticket.status) %></span><span class="priority priority-<%= ticket.priority %>"><%= priorityLabel(ticket.priority) %></span><span>Erstellt <%= formatDateTime(ticket.created_at) %></span></div>
+    <div class="ticket-heading-meta">
+      <span class="badge badge-status-<%= ticket.status %>"><%= statusLabel(ticket.status) %></span>
+      <span class="sla-chip sla-<%= slaState(ticket) %>">SLA <%= slaLabel(ticket.sla || 'standard') %></span>
+      <span class="priority priority-<%= ticket.priority %>"><%= priorityLabel(ticket.priority) %></span>
+      <span>Erstellt <%= formatDateTime(ticket.created_at) %></span>
+    </div>
   </div>
-  <a class="button button-secondary" href="/tickets">← Zur Liste</a>
+  <div class="ticket-heading-actions">
+    <% if (can('tickets.manage') && ticket.assignee_id !== currentUser.id) { %>
+      <form action="/tickets/<%= ticket.id %>/take" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="button button-primary" type="submit">Ticket übernehmen</button>
+      </form>
+    <% } %>
+    <a class="button button-secondary" href="/tickets">← Zur Liste</a>
+  </div>
 </div>
 
 <div class="ticket-detail-grid">
   <div class="conversation-column">
     <article class="message-card message-original">
-      <header><span class="avatar"><%= initials(ticket.requester_name) %></span><div><strong><%= ticket.requester_name %></strong><small>Anfrage · <%= formatDateTime(ticket.created_at) %></small></div></header>
+      <header><span class="avatar"><%= initials(ticket.requester_name) %></span><div><strong><%= ticket.requester_name %></strong><small><%= ticketChannelLabel(ticket.channel) %> · <%= ticket.ticket_type || 'Anfrage' %> · <%= formatDateTime(ticket.created_at) %></small></div></header>
       <div class="message-body"><%= ticket.description %></div>
     </article>
     <% comments.forEach(comment => { %>
       <article class="message-card <%= comment.is_internal ? 'message-internal' : '' %>">
-        <header><span class="avatar <%= comment.is_internal ? 'avatar-warm' : 'avatar-soft' %>"><%= initials(comment.author_name) %></span><div><strong><%= comment.author_name %></strong><small><%= comment.is_internal ? 'Interne Notiz' : roleLabel(comment.author_role) %> · <%= formatDateTime(comment.created_at) %></small></div><% if (comment.is_internal) { %><span class="internal-label">Nur Team</span><% } %></header>
+        <header>
+          <span class="avatar <%= comment.is_internal ? 'avatar-warm' : 'avatar-soft' %>"><%= initials(comment.author_name) %></span>
+          <div><strong><%= comment.author_name %></strong><small><%= comment.is_internal ? 'Interne Notiz' : roleLabel(comment.author_role) %> · <%= formatDateTime(comment.created_at) %></small></div>
+          <% if (comment.is_internal) { %><span class="internal-label">Nur Team</span><% } %>
+        </header>
         <div class="message-body"><%= comment.body %></div>
       </article>
     <% }) %>
-    <form class="reply-box" action="/tickets/<%= ticket.id %>/comments" method="post">
+    <% if (can('tickets.worklog')) { %>
+      <section class="panel worklog-panel">
+        <div class="panel-header">
+          <div><h2>Leistungsdokumentation</h2></div>
+          <span class="worklog-total"><strong><%= formatTicks(ticket.billed_ticks) %></strong><small><%= formatMinutes(ticket.billed_ticks * 15) %></small></span>
+        </div>
+        <form class="worklog-form" action="/tickets/<%= ticket.id %>/work-log" method="post">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label class="worklog-description">Durchgeführte Arbeiten
+            <textarea name="description" rows="4" minlength="3" maxlength="2000" placeholder="Was wurde geprüft, geändert oder erledigt?" required></textarea>
+          </label>
+          <div class="worklog-controls">
+            <label>Verrechnung
+              <select name="direction">
+                <option value="add">Takte hinzufügen</option>
+                <option value="subtract">Takte abziehen</option>
+              </select>
+            </label>
+            <label>Takte
+              <select name="ticks"><% tickOptions.forEach(tick => { %><option value="<%= tick %>"><%= tick %> <%= tick === 1 ? 'Takt' : 'Takte' %> · <%= tick * 15 %> Min.</option><% }) %></select>
+            </label>
+            <button class="button button-primary" type="submit">Arbeitsnachweis speichern</button>
+          </div>
+        </form>
+        <% if (workLogs.length) { %>
+          <div class="worklog-list">
+            <% workLogs.forEach(entry => { %>
+              <article class="worklog-entry">
+                <div><strong><%= entry.author_name %></strong><small><%= formatDateTime(entry.created_at) %></small></div>
+                <p><%= entry.description %></p>
+                <span class="tick-delta <%= entry.ticks > 0 ? 'tick-add' : 'tick-subtract' %>"><%= entry.ticks > 0 ? '+' : '' %><%= entry.ticks %> · <%= entry.ticks > 0 ? '+' : '−' %><%= Math.abs(entry.ticks * 15) %> Min.</span>
+              </article>
+            <% }) %>
+          </div>
+        <% } else { %><p class="worklog-empty">Noch keine Arbeiten dokumentiert.</p><% } %>
+      </section>
+    <% } %>
+    <% if (can('tickets.comment')) { %><form class="reply-box" action="/tickets/<%= ticket.id %>/comments" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="reply-title"><div><strong>Antwort hinzufügen</strong><small>Die Antwort ist anschließend direkt im Ticket sichtbar.</small></div></div>
-      <textarea name="body" rows="5" placeholder="Nachricht schreiben …" required></textarea>
+      <div class="reply-title"><div><strong>Antwort hinzufügen</strong><small>Öffentliche Antworten stoppen die Erstreaktionszeit.</small></div></div>
+      <% if (can('tickets.internal')) { %>
+        <div class="reply-tools">
+          <label>Antwortvorlage
+            <select data-response-template>
+              <option value="">Ohne Vorlage</option>
+              <% responseTemplates.forEach(template => { %><option value="<%= template.id %>" data-template-content="<%= template.content %>"><%= template.template_type === 'signature' ? 'Signatur' : template.template_type === 'auto_reply' ? 'Automatische Antwort' : 'Antwort' %> · <%= template.name %></option><% }) %>
+            </select>
+          </label>
+        </div>
+      <% } %>
+      <textarea name="body" rows="5" placeholder="Nachricht schreiben …" data-response-target required></textarea>
       <div class="reply-actions">
-        <% if (currentUser.role !== 'requester') { %><label class="check-label"><input type="checkbox" name="is_internal"><span>Als interne Notiz speichern</span></label><% } else { %><span></span><% } %>
+        <% if (can('tickets.internal')) { %>
+          <div class="reply-options">
+            <label class="check-label"><input type="checkbox" name="is_internal"><span>Interne Notiz</span></label>
+          </div>
+        <% } else { %><span></span><% } %>
         <button class="button button-primary" type="submit">Antwort speichern</button>
       </div>
-    </form>
+    </form><% } %>
   </div>
 
   <aside class="ticket-sidebar">
-    <% if (currentUser.role !== 'requester') { %>
+    <section class="panel sla-panel">
+      <div class="panel-header"><div><h2>SLA & Eskalation</h2><p><%= slaLabel(ticket.sla || 'standard') %>-Servicelevel</p></div></div>
+      <% const responseState = slaState(ticket, 'response'); %>
+      <% const resolutionState = slaState(ticket, 'resolution'); %>
+      <div class="sla-row sla-row-<%= responseState %>">
+        <i></i><span><strong>Erstreaktion</strong><small><%= deadlineText(ticket.first_response_at || ticket.response_due_at, responseState) %></small></span>
+      </div>
+      <div class="sla-row sla-row-<%= resolutionState %>">
+        <i></i><span><strong>Lösung</strong><small><%= deadlineText(ticket.closed_at || ticket.resolution_due_at, resolutionState) %></small></span>
+      </div>
+      <% if (ticket.status === 'waiting') { %><p class="sla-note">Die Eskalationszeiten sind während der Wiedervorlage pausiert.</p><% } %>
+    </section>
+
+    <% if (can('tickets.manage')) { %>
       <form class="panel side-form" action="/tickets/<%= ticket.id %>/update" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="panel-header"><div><h2>Ticket steuern</h2><p>Status und Verantwortung</p></div></div>
+        <div class="panel-header"><div><h2>Ticket steuern</h2></div></div>
         <label>Status<select name="status"><% ['open','in_progress','waiting','resolved','closed'].forEach(value => { %><option value="<%= value %>" <%= ticket.status === value ? 'selected' : '' %>><%= statusLabel(value) %></option><% }) %></select></label>
         <label>Priorität<select name="priority"><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= ticket.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
         <label>Zuständig<select name="assignee_id"><option value="">Nicht zugewiesen</option><% agents.forEach(agent => { %><option value="<%= agent.id %>" <%= ticket.assignee_id === agent.id ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
-        <label>Kategorie<input type="text" name="category" value="<%= ticket.category %>" maxlength="80"></label>
-        <label>Fällig am<input type="datetime-local" name="due_at" value="<%= ticket.due_at ? new Date(ticket.due_at).toISOString().slice(0,16) : '' %>"></label>
+        <label>Queue<select name="category"><% queues.forEach(value => { %><option value="<%= value %>" <%= ticket.category === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+        <label>Typ<select name="ticket_type"><% ticketTypes.forEach(value => { %><option value="<%= value %>" <%= ticket.ticket_type === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+        <label>SLA<select name="sla"><% slaOptions.forEach(option => { %><option value="<%= option.value %>" <%= (ticket.sla || 'standard') === option.value ? 'selected' : '' %>><%= option.label %> · <%= option.responseMinutes / 60 %>h / <%= option.resolutionMinutes / 60 %>h</option><% }) %></select></label>
+        <label>Wiedervorlage<input type="datetime-local" name="due_at" value="<%= formatDateTimeInput(ticket.due_at) %>"><small>Für den Status „Warten auf Rückmeldung“.</small></label>
         <button class="button button-primary button-full" type="submit">Änderungen speichern</button>
       </form>
     <% } %>
-    <section class="panel detail-list">
-      <div class="panel-header"><div><h2>Details</h2><p>Informationen zum Ticket</p></div></div>
-      <dl><div><dt>Anfragende Person</dt><dd><strong><%= ticket.requester_name %></strong><small><%= ticket.requester_email %></small></dd></div><div><dt>Zuständig</dt><dd><%= ticket.assignee_name || 'Nicht zugewiesen' %></dd></div><div><dt>Kategorie</dt><dd><%= ticket.category %></dd></div><div><dt>Fällig</dt><dd><%= formatDateTime(ticket.due_at) %></dd></div><div><dt>Letzte Änderung</dt><dd><%= formatDateTime(ticket.updated_at) %></dd></div></dl>
+    <section class="panel ticket-assets-panel">
+      <div class="panel-header"><div><h2>Geräte & Ressourcen</h2><p><%= ticket.requester_name %> zugeordnet</p></div><% if (assets.some(asset => asset.is_linked)) { %><span class="resource-count"><%= assets.filter(asset => asset.is_linked).length %></span><% } %></div>
+      <% if (assets.length) { %>
+        <div class="ticket-asset-list">
+          <% assets.forEach(asset => { %>
+            <article class="ticket-asset-card <%= asset.is_linked ? 'is-linked' : '' %>">
+              <a href="/assets/<%= asset.id %>">
+                <span class="asset-icon"><%= asset.asset_type === 'Notebook' ? 'NB' : asset.asset_type === 'Computer' ? 'PC' : asset.asset_type === 'Smartphone' ? 'SP' : asset.asset_type === 'Softwarelizenz' ? 'SW' : 'IT' %></span>
+                <span><strong><%= asset.name %></strong><small><%= asset.asset_number %> · <%= asset.asset_type %></small><small><%= asset.manufacturer || '' %> <%= asset.model || '' %></small></span>
+              </a>
+              <% if (asset.is_linked) { %>
+                <span class="linked-label">✓ Verknüpft</span>
+                <% if (can('tickets.manage')) { %>
+                  <form action="/tickets/<%= ticket.id %>/assets/<%= asset.id %>/remove" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button type="submit" class="link-button link-danger">Lösen</button></form>
+                <% } %>
+              <% } else if (can('tickets.manage')) { %>
+                <form action="/tickets/<%= ticket.id %>/assets" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="asset_id" value="<%= asset.id %>"><button type="submit" class="link-button">Mit Ticket verknüpfen</button></form>
+              <% } else { %><span class="unlinked-label">Weitere Ressource</span><% } %>
+            </article>
+          <% }) %>
+        </div>
+      <% } else { %><div class="empty-state compact-empty"><span>–</span><h3>Keine Geräte</h3><p>Der anfragenden Person ist noch keine Ressource zugeordnet.</p></div><% } %>
     </section>
-    <% if (currentUser.role !== 'requester' && activity.length) { %>
+    <section class="panel detail-list">
+      <div class="panel-header"><div><h2>Details</h2></div></div>
+      <dl>
+        <div><dt>Anfragende Person</dt><dd><strong><%= ticket.requester_name %></strong><small><%= ticket.requester_email %></small></dd></div>
+        <% if (ticket.customer_name) { %><div><dt>Kunde</dt><dd><% if (can('customers.view')) { %><a class="detail-link" href="/customers/<%= ticket.effective_customer_id %>"><%= ticket.customer_name %></a><% } else { %><%= ticket.customer_name %><% } %></dd></div><% } %>
+        <div><dt>Zuständig</dt><dd><%= ticket.assignee_name || 'Nicht zugewiesen' %></dd></div>
+        <div><dt>Queue</dt><dd><%= ticket.category %></dd></div>
+        <div><dt>Kanal</dt><dd><%= ticketChannelLabel(ticket.channel) %></dd></div>
+        <div><dt>Typ</dt><dd><%= ticket.ticket_type || 'Anfrage' %></dd></div>
+        <div><dt>SLA</dt><dd><%= slaLabel(ticket.sla || 'standard') %></dd></div>
+        <% if (can('tickets.worklog')) { %><div><dt>Takte</dt><dd><strong><%= formatTicks(ticket.billed_ticks) %></strong><small><%= formatMinutes(ticket.billed_ticks * 15) %></small></dd></div><% } %>
+        <div><dt>Wiedervorlage</dt><dd><%= formatDateTime(ticket.due_at) %></dd></div>
+        <div><dt>Letzte Änderung</dt><dd><%= formatDateTime(ticket.updated_at) %></dd></div>
+      </dl>
+    </section>
+    <% if (can('tickets.internal') && activity.length) { %>
       <section class="panel activity-panel">
-        <div class="panel-header"><div><h2>Verlauf</h2><p>Letzte Aktivitäten</p></div></div>
-        <ol><% activity.slice(0,8).forEach(item => { %><li><i></i><div><strong><%= item.action === 'ticket_created' ? 'Ticket erstellt' : item.action === 'ticket_updated' ? 'Ticket aktualisiert' : 'Kommentar hinzugefügt' %></strong><span><%= item.actor_name || 'System' %> · <%= formatDateTime(item.created_at) %></span></div></li><% }) %></ol>
+        <div class="panel-header"><div><h2>Verlauf</h2></div></div>
+        <ol><% activity.slice(0,10).forEach(item => { %><li><i></i><div><strong><%= item.action === 'ticket_created' ? 'Ticket erstellt' : item.action === 'email_ticket_created' ? 'Aus E-Mail erstellt' : item.action === 'email_received' ? 'E-Mail empfangen' : item.action === 'ticket_updated' ? 'Ticket aktualisiert' : item.action === 'ticket_taken' ? 'Ticket übernommen' : item.action === 'work_logged' ? 'Arbeitsnachweis erfasst' : item.action === 'asset_linked' ? 'Ressource verknüpft' : item.action === 'asset_unlinked' ? 'Ressource gelöst' : 'Kommentar hinzugefügt' %></strong><span><%= item.actor_name || 'System' %> · <%= formatDateTime(item.created_at) %></span></div></li><% }) %></ol>
       </section>
     <% } %>
   </aside>

@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { requireAuth } from "../middleware.js";
 import { setFlash } from "../security.js";
+import { userNamesFromBody, validUserNames } from "../user-names.js";
 
 export function accountRouter({ pool }) {
   const router = express.Router();
@@ -10,9 +11,9 @@ export function accountRouter({ pool }) {
   router.get("/", (req, res) => res.render("account", { title: "Mein Konto", error: null }));
 
   router.post("/profile", async (req, res) => {
-    const name = String(req.body.name ?? "").trim();
-    if (name.length < 2) return res.status(422).render("account", { title: "Mein Konto", error: "Bitte gib einen gültigen Namen ein." });
-    await pool.query("UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2", [name, req.user.id]);
+    const { firstName, lastName, name } = userNamesFromBody(req.body);
+    if (!validUserNames(firstName, lastName)) return res.status(422).render("account", { title: "Mein Konto", error: "Vor- und Nachname müssen jeweils mindestens zwei Zeichen enthalten." });
+    await pool.query("UPDATE users SET first_name = $1, last_name = $2, name = $3, updated_at = NOW() WHERE id = $4", [firstName, lastName, name, req.user.id]);
     setFlash(req, "success", "Profil wurde aktualisiert.");
     res.redirect("/account");
   });

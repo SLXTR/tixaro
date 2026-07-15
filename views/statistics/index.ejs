@@ -1,0 +1,48 @@
+<% layout('layout') -%>
+<header class="workbench-heading statistics-heading">
+  <div><h1>Statistiken</h1><p>Kundenstandorte und historischer Ressourcenbestand.</p></div>
+</header>
+
+<nav class="statistics-tabs" aria-label="Statistikbereiche">
+  <a href="#kundenkarte">Kundenkarte <b><%= metrics.mapped_customers %></b></a>
+  <a href="#bestand">Bestand zum Stichtag <b><%= assignments.length %></b></a>
+</nav>
+
+<section class="statistics-metrics" aria-label="Kennzahlen">
+  <article><small>Aktive Kunden</small><strong><%= metrics.customers %></strong><span><%= metrics.mapped_customers %> auf der Karte</span></article>
+  <article><small>Aktive Ressourcen</small><strong><%= metrics.active_assets %></strong><span>ohne ausgemusterte Objekte</span></article>
+  <article><small>Offene Tickets</small><strong><%= metrics.open_tickets %></strong><span>über alle Kunden und Queues</span></article>
+  <article><small>Bestand am Stichtag</small><strong><%= assignments.length %></strong><span><%= formatDate(selectedDate) %></span></article>
+</section>
+
+<section class="panel statistics-map-panel" id="kundenkarte">
+  <div class="panel-header"><div><h2>Kundenstandorte</h2><p>Gespeicherte Standorte auf der Karte.</p></div><span class="config-total"><%= customerLocations.length %> Standorte</span></div>
+  <% if (customerLocations.length) { %>
+    <div class="statistics-map" data-customer-map data-locations="<%= JSON.stringify(customerLocations) %>" data-tile-url="<%= mapTileUrl %>" aria-label="Karte aller Kundenstandorte"></div>
+  <% } else { %>
+    <div class="map-placeholder statistics-map-empty"><span>⌖</span><div><strong>Noch keine Kartenpositionen</strong><p>Wähle in den Kundenstammdaten Adressvorschläge aus, damit Standorte hier erscheinen.</p></div></div>
+  <% } %>
+</section>
+
+<section class="panel history-filter-panel" id="bestand">
+  <form class="history-filter" action="/statistics#bestand" method="get">
+    <label><span>Stichtag</span><input type="date" name="at" value="<%= selectedDate %>" max="<%= today %>" required></label>
+    <button class="button button-primary" type="submit">Bestand anzeigen</button>
+  </form>
+  <div class="history-summary"><strong><%= assignments.length %></strong><span>Ressourcen am <%= formatDate(selectedDate) %></span></div>
+</section>
+
+<section class="panel">
+  <div class="panel-header"><div><h2>Historischer Ressourcenbestand</h2><p>Damals gültiger Kunde, Benutzer, Standort und Status.</p></div></div>
+  <% if (assignments.length) { %>
+    <div class="table-scroll"><table class="history-table">
+      <thead><tr><th>Ressource</th><th>Status</th><th>Kunde</th><th>Kundenbenutzer</th><th>Standort</th><th>Gültig seit</th><th>Gültig bis</th></tr></thead>
+      <tbody><% assignments.forEach(entry => { %><tr>
+        <td><% if (can('assets.view')) { %><a href="/assets/<%= entry.asset_id %>"><strong><%= entry.asset_name %></strong><small><%= entry.asset_number %> · <%= entry.asset_type %></small></a><% } else { %><strong><%= entry.asset_name %></strong><small><%= entry.asset_number %> · <%= entry.asset_type %></small><% } %></td>
+        <td><span class="asset-status asset-status-<%= entry.asset_status %>"><%= assetStatusLabel(entry.asset_status) %></span></td>
+        <td><%= entry.customer_name || 'Ohne Kunde' %></td><td><%= entry.assigned_user_name || 'Nicht zugewiesen' %></td><td><%= entry.location || '–' %></td>
+        <td><%= formatDateTime(entry.valid_from) %></td><td><%= entry.valid_until ? formatDateTime(entry.valid_until) : 'Heute' %></td>
+      </tr><% }) %></tbody>
+    </table></div>
+  <% } else { %><div class="empty-state"><span>⌁</span><h3>Kein Bestand zu diesem Datum</h3><p>Wähle einen späteren Stichtag oder lege zuerst Ressourcen an.</p></div><% } %>
+</section>

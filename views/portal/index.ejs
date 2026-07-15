@@ -1,0 +1,43 @@
+<% layout('layout') -%>
+<section class="portal-hero">
+  <div class="portal-hero-copy">
+    <span class="portal-kicker">Willkommen im <%= companyName %> Kundenportal</span>
+    <h1>Hallo <%= currentUser.name.split(' ')[0] %>, wie können wir helfen?</h1>
+    <p>Hier findest du deine Anfragen, Geräte und den aktuellen Bearbeitungsstand an einem Ort.</p>
+    <div class="portal-hero-actions"><a class="button portal-primary-action" href="/tickets/new">Neue Anfrage stellen</a><a class="button portal-secondary-action" href="/tickets">Meine Anfragen</a></div>
+  </div>
+  <div class="portal-hero-mark"><img src="/brand-logo" alt=""><span><%= companyName %></span></div>
+</section>
+
+<section class="portal-stat-grid" aria-label="Meine Übersicht">
+  <a href="/tickets?status=open"><span>Offene Anfragen</span><strong><%= stats.active %></strong><small>werden gerade bearbeitet</small></a>
+  <a href="/tickets?status=waiting"><span>Rückfrage offen</span><strong><%= stats.waiting %></strong><small>wartet auf eine Rückmeldung</small></a>
+  <a href="/tickets?status=resolved"><span>Erledigt</span><strong><%= stats.completed %></strong><small>abgeschlossene Anfragen</small></a>
+  <a href="/assets"><span>Meine Geräte</span><strong><%= stats.assets %></strong><small>dir aktuell zugeordnet</small></a>
+</section>
+
+<div class="portal-grid">
+  <section class="panel portal-panel">
+    <div class="panel-header"><div><p class="panel-kicker">Zuletzt aktualisiert</p><h2>Meine Anfragen</h2></div><a href="/tickets">Alle ansehen →</a></div>
+    <% if (tickets.length) { %><div class="portal-ticket-list">
+      <% tickets.forEach(ticket => { %><a href="/tickets/<%= ticket.id %>" class="portal-ticket-row">
+        <span><strong><%= ticket.subject %></strong><small><%= ticket.ticket_number %> · <%= formatDate(ticket.updated_at) %></small></span>
+        <span class="badge badge-status-<%= ticket.status %>"><%= statusLabel(ticket.status) %></span>
+        <b>→</b>
+      </a><% }) %>
+    </div><% } else { %><div class="portal-empty"><span>✓</span><strong>Noch keine Anfragen</strong><p>Wenn etwas nicht funktioniert oder du Unterstützung brauchst, kannst du hier direkt eine Anfrage stellen.</p><a class="button button-primary" href="/tickets/new">Erste Anfrage erstellen</a></div><% } %>
+  </section>
+
+  <aside class="portal-side-stack">
+    <section class="panel portal-panel">
+      <div class="panel-header"><div><p class="panel-kicker">Inventar</p><h2>Meine Geräte</h2></div><a href="/assets">Alle ansehen →</a></div>
+      <% if (assets.length) { %><div class="portal-device-list"><% assets.forEach(asset => { %><a href="/assets/<%= asset.id %>"><span class="portal-device-icon"><%= asset.asset_type === 'Notebook' ? 'NB' : asset.asset_type === 'Computer' ? 'PC' : asset.asset_type === 'Smartphone' ? 'SP' : 'IT' %></span><span><strong><%= asset.name %></strong><small><%= asset.asset_number %> · <%= asset.manufacturer || asset.asset_type %></small></span><b>→</b></a><% }) %></div><% } else { %><p class="portal-panel-note">Dir sind derzeit keine Geräte zugeordnet.</p><% } %>
+    </section>
+
+    <section class="panel portal-contact-card">
+      <span class="portal-contact-icon">?</span>
+      <div><small>Dein Unternehmen</small><strong><%= profile?.customer_name || 'Noch nicht zugeordnet' %></strong><p><%= profile?.department || profile?.site || 'Bei Fragen helfen wir dir gern weiter.' %></p></div>
+      <a href="/tickets/new">Support kontaktieren</a>
+    </section>
+  </aside>
+</div>

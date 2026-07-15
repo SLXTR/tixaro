@@ -1,29 +1,62 @@
 <% layout('layout') -%>
-<div class="page-heading compact-heading">
-  <div><p class="eyebrow">Neue Anfrage</p><h1>Ticket erstellen</h1><p>Beschreibe das Anliegen so konkret wie möglich.</p></div>
+<% if (currentUser.role === 'requester') { %>
+<header class="workbench-heading portal-list-heading">
+  <div><p class="eyebrow">Kundenportal</p><h1>Neue Anfrage</h1><p>Beschreibe kurz, wobei du Unterstützung brauchst. Wir kümmern uns um die richtige Zuordnung.</p></div>
   <a class="button button-secondary" href="/tickets">Abbrechen</a>
-</div>
+</header>
+<form class="portal-request-form" action="/tickets" method="post">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <section class="panel form-panel">
+    <div class="panel-header"><div><p class="panel-kicker">Dein Anliegen</p><h2>Wie können wir helfen?</h2></div><span class="portal-step">1 von 1</span></div>
+    <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+    <div class="portal-request-fields">
+      <label>Kurzer Betreff<input type="text" name="subject" value="<%= values.subject || '' %>" minlength="4" maxlength="180" placeholder="z. B. Anmeldung funktioniert nicht" required autofocus></label>
+      <label>Beschreibung<textarea name="description" rows="9" minlength="10" placeholder="Was ist passiert? Seit wann besteht das Problem? Gibt es eine Fehlermeldung?" required><%= values.description || '' %></textarea><small>Bitte keine Passwörter oder Zugangsdaten eintragen.</small></label>
+      <label>Betroffenes Gerät <small>optional</small>
+        <select name="asset_id" data-ticket-asset data-default-requester="<%= currentUser.id %>"><option value="">Kein bestimmtes Gerät</option><% assets.forEach(asset => { %><option value="<%= asset.id %>" data-owner-id="<%= asset.assigned_user_id || '' %>" <%= String(values.asset_id) === String(asset.id) ? 'selected' : '' %>><%= asset.name %> · <%= asset.asset_number %></option><% }) %></select>
+        <small data-asset-help>Dir zugeordnete Geräte werden hier angeboten.</small>
+      </label>
+    </div>
+    <div class="portal-request-actions"><span>Du erhältst alle Antworten direkt im Portal und per E-Mail, sobald ein Mailkanal eingerichtet ist.</span><button class="button button-primary" type="submit">Anfrage absenden</button></div>
+  </section>
+</form>
+<% } else { %>
+<header class="workbench-heading">
+  <div><p class="eyebrow">Neuer Vorgang</p><h1>Ticket erstellen</h1><p>Erfasse das Anliegen mit Queue, Servicelevel und betroffener Ressource.</p></div>
+  <a class="button button-secondary" href="/tickets">Abbrechen</a>
+</header>
 
 <form class="editor-grid" action="/tickets" method="post">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <section class="panel form-panel">
-    <div class="panel-header"><div><h2>Anliegen</h2><p>Die wichtigsten Informationen zum Vorgang</p></div></div>
+    <div class="panel-header"><div><p class="panel-kicker">Inhalt</p><h2>Anliegen und Einordnung</h2></div></div>
     <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
     <div class="form-grid">
+      <label class="field-full">Kanal<select name="channel" required><% ticketChannels.forEach(item => { %><option value="<%= item.value %>" <%= (values.channel || 'email') === item.value ? 'selected' : '' %>><%= item.label %></option><% }) %></select><small>Wie wurde der Kontakt aufgenommen?</small></label>
       <label class="field-full">Betreff<input type="text" name="subject" value="<%= values.subject || '' %>" minlength="4" maxlength="180" placeholder="Worum geht es?" required autofocus></label>
       <label class="field-full">Beschreibung<textarea name="description" rows="10" minlength="10" placeholder="Beschreibe das Problem, den gewünschten Zustand und wichtige Hintergründe …" required><%= values.description || '' %></textarea><small>Keine Passwörter oder andere Zugangsdaten eintragen.</small></label>
-      <label>Kategorie<input type="text" name="category" value="<%= values.category || 'Allgemein' %>" maxlength="80" placeholder="z. B. IT, Buchhaltung"></label>
+      <label>Queue<select name="category" data-queue-select><% queueRecords.forEach(queue => { %><option value="<%= queue.name %>" data-default-sla="<%= queue.default_sla_code || '' %>" <%= (values.category || queues[0]) === queue.name ? 'selected' : '' %>><%= queue.parent_name ? `${queue.parent_name} / ` : '' %><%= queue.name %></option><% }) %></select></label>
+      <label>Typ<select name="ticket_type"><% ticketTypes.forEach(value => { %><option value="<%= value %>" <%= (values.ticket_type || ticketTypes[0]) === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
       <label>Priorität<select name="priority"><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= (values.priority || 'normal') === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
+      <label>SLA<select name="sla" data-sla-select><% slaOptions.forEach(option => { %><option value="<%= option.value %>" <%= (values.sla || 'standard') === option.value ? 'selected' : '' %>><%= option.label %> · Antwort <%= option.responseMinutes / 60 %>h / Lösung <%= option.resolutionMinutes / 60 %>h</option><% }) %></select></label>
     </div>
   </section>
-  <aside class="panel form-panel">
-    <div class="panel-header"><div><h2>Zuständigkeit</h2><p>Wer meldet und bearbeitet?</p></div></div>
-    <% if (currentUser.role !== 'requester') { %>
-      <label>Anfragende Person<select name="requester_id"><option value="">Ich selbst</option><% requesters.forEach(person => { %><option value="<%= person.id %>" <%= String(values.requester_id) === String(person.id) ? 'selected' : '' %>><%= person.name %> · <%= person.email %></option><% }) %></select></label>
+  <aside class="panel form-panel ticket-create-aside">
+    <div class="panel-header"><div><p class="panel-kicker">Kontext</p><h2>Zuständigkeit</h2></div></div>
+    <% if (can('tickets.manage')) { %>
+      <label>Anfragende Person<select name="requester_id" data-ticket-requester><option value="" data-label="Ich selbst">Ich selbst</option><% requesters.forEach(person => { %><option value="<%= person.id %>" <%= String(values.requester_id) === String(person.id) ? 'selected' : '' %>><%= person.name %> · <%= person.customer_name || person.email %></option><% }) %></select></label>
       <label>Zuweisen an<select name="assignee_id"><option value="">Noch nicht zuweisen</option><% agents.forEach(agent => { %><option value="<%= agent.id %>" <%= String(values.assignee_id) === String(agent.id) ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
     <% } else { %>
       <div class="info-box"><span class="avatar avatar-soft"><%= initials(currentUser.name) %></span><div><strong><%= currentUser.name %></strong><small>Du wirst als anfragende Person eingetragen.</small></div></div>
     <% } %>
-    <div class="form-actions-sticky"><button class="button button-primary button-full" type="submit">Ticket verbindlich erstellen →</button><p>Das Ticket ist direkt für das Support-Team sichtbar.</p></div>
+    <label>Betroffene Ressource
+      <select name="asset_id" data-ticket-asset data-default-requester="<%= currentUser.id %>">
+        <option value="">Keine Ressource verknüpfen</option>
+        <% assets.forEach(asset => { %><option value="<%= asset.id %>" data-owner-id="<%= asset.assigned_user_id || '' %>" <%= String(values.asset_id) === String(asset.id) ? 'selected' : '' %>><%= asset.asset_number %> · <%= asset.name %> (<%= asset.asset_type %>)</option><% }) %>
+      </select>
+      <small data-asset-help>Nach Auswahl eines Kundenbenutzers erscheinen dessen Geräte.</small>
+    </label>
+    <div class="form-actions-sticky"><button class="button button-primary button-full" type="submit">Ticket erstellen</button></div>
   </aside>
 </form>
+<% } %>
