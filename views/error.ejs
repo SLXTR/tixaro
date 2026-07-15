@@ -1,0 +1,2 @@
+<% layout('layout') -%>
+<section class="error-page"><span>!</span><p class="eyebrow">Tixaro</p><h1><%= title %></h1><p><%= message %></p><a class="button button-primary" href="<%= typeof currentUser !== 'undefined' && currentUser ? '/' : '/login' %>">Zurück zum Start</a></section>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title><%= title ? `${title} · ${companyName}` : companyName %></title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body class="<%= currentUser ? 'app-body' : 'auth-body' %>">
+  <% if (currentUser) { %>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="/" aria-label="<%= companyName %> Dashboard">
+          <span class="brand-mark">T</span>
+          <span><strong>Tixaro</strong><small><%= companyName %></small></span>
+        </a>
+        <nav class="nav" aria-label="Hauptnavigation">
+          <a class="nav-link <%= currentPath === '/' ? 'is-active' : '' %>" href="/">
+            <span class="nav-icon">⌂</span><span>Dashboard</span>
+          </a>
+          <a class="nav-link <%= currentPath.startsWith('/tickets') && currentPath !== '/tickets/new' ? 'is-active' : '' %>" href="/tickets">
+            <span class="nav-icon">▤</span><span>Tickets</span>
+          </a>
+          <a class="nav-link <%= currentPath === '/tickets/new' ? 'is-active' : '' %>" href="/tickets/new">
+            <span class="nav-icon">＋</span><span>Neues Ticket</span>
+          </a>
+          <% if (currentUser.role === 'admin') { %>
+            <span class="nav-section">Verwaltung</span>
+            <a class="nav-link <%= currentPath.startsWith('/users') ? 'is-active' : '' %>" href="/users">
+              <span class="nav-icon">♙</span><span>Benutzer</span>
+            </a>
+          <% } %>
+        </nav>
+        <div class="sidebar-footer">
+          <a class="user-card" href="/account">
+            <span class="avatar"><%= initials(currentUser.name) %></span>
+            <span class="user-meta"><strong><%= currentUser.name %></strong><small><%= roleLabel(currentUser.role) %></small></span>
+          </a>
+          <form action="/logout" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="logout-button" type="submit" title="Abmelden" aria-label="Abmelden">↗</button>
+          </form>
+        </div>
+      </aside>
+      <div class="sidebar-backdrop" data-sidebar-close></div>
+      <div class="main-column">
+        <header class="topbar">
+          <button class="menu-button" type="button" data-sidebar-toggle aria-controls="sidebar" aria-expanded="false">☰</button>
+          <div>
+            <p class="eyebrow"><%= companyName %></p>
+            <strong><%= title %></strong>
+          </div>
+          <a class="topbar-action" href="/tickets/new">＋ Ticket</a>
+        </header>
+        <main class="main-content">
+          <% if (flash) { %>
+            <div class="flash flash-<%= flash.type %>" role="status">
+              <span><%= flash.type === 'success' ? '✓' : '!' %></span>
+              <p><%= flash.message %></p>
+              <button type="button" data-flash-close aria-label="Hinweis schließen">×</button>
+            </div>
+          <% } %>
+          <%- body %>
+        </main>
+      </div>
+    </div>
+  <% } else { %>
+    <main class="auth-shell"><%- body %></main>
+  <% } %>
+</body>
+</html>

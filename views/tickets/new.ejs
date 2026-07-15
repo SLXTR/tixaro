@@ -1,0 +1,29 @@
+<% layout('layout') -%>
+<div class="page-heading compact-heading">
+  <div><p class="eyebrow">Neue Anfrage</p><h1>Ticket erstellen</h1><p>Beschreibe das Anliegen so konkret wie möglich.</p></div>
+  <a class="button button-secondary" href="/tickets">Abbrechen</a>
+</div>
+
+<form class="editor-grid" action="/tickets" method="post">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <section class="panel form-panel">
+    <div class="panel-header"><div><h2>Anliegen</h2><p>Die wichtigsten Informationen zum Vorgang</p></div></div>
+    <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+    <div class="form-grid">
+      <label class="field-full">Betreff<input type="text" name="subject" value="<%= values.subject || '' %>" minlength="4" maxlength="180" placeholder="Worum geht es?" required autofocus></label>
+      <label class="field-full">Beschreibung<textarea name="description" rows="10" minlength="10" placeholder="Beschreibe das Problem, den gewünschten Zustand und wichtige Hintergründe …" required><%= values.description || '' %></textarea><small>Keine Passwörter oder andere Zugangsdaten eintragen.</small></label>
+      <label>Kategorie<input type="text" name="category" value="<%= values.category || 'Allgemein' %>" maxlength="80" placeholder="z. B. IT, Buchhaltung"></label>
+      <label>Priorität<select name="priority"><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= (values.priority || 'normal') === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
+    </div>
+  </section>
+  <aside class="panel form-panel">
+    <div class="panel-header"><div><h2>Zuständigkeit</h2><p>Wer meldet und bearbeitet?</p></div></div>
+    <% if (currentUser.role !== 'requester') { %>
+      <label>Anfragende Person<select name="requester_id"><option value="">Ich selbst</option><% requesters.forEach(person => { %><option value="<%= person.id %>" <%= String(values.requester_id) === String(person.id) ? 'selected' : '' %>><%= person.name %> · <%= person.email %></option><% }) %></select></label>
+      <label>Zuweisen an<select name="assignee_id"><option value="">Noch nicht zuweisen</option><% agents.forEach(agent => { %><option value="<%= agent.id %>" <%= String(values.assignee_id) === String(agent.id) ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
+    <% } else { %>
+      <div class="info-box"><span class="avatar avatar-soft"><%= initials(currentUser.name) %></span><div><strong><%= currentUser.name %></strong><small>Du wirst als anfragende Person eingetragen.</small></div></div>
+    <% } %>
+    <div class="form-actions-sticky"><button class="button button-primary button-full" type="submit">Ticket verbindlich erstellen →</button><p>Das Ticket ist direkt für das Support-Team sichtbar.</p></div>
+  </aside>
+</form>

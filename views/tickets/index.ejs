@@ -1,0 +1,17 @@
+<% layout('layout') -%>
+<div class="page-heading compact-heading">
+  <div><p class="eyebrow">Arbeitsbereich</p><h1>Tickets</h1><p>Anfragen durchsuchen, priorisieren und bearbeiten.</p></div>
+  <a class="button button-primary" href="/tickets/new">＋ Neues Ticket</a>
+</div>
+
+<section class="panel">
+  <form class="filter-bar" action="/tickets" method="get">
+    <label class="search-field"><span>⌕</span><input type="search" name="q" value="<%= filters.q %>" placeholder="Ticketnummer, Betreff oder Name …"></label>
+    <label><span>Status</span><select name="status"><option value="">Alle Status</option><% ['open','in_progress','waiting','resolved','closed'].forEach(value => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= statusLabel(value) %></option><% }) %></select></label>
+    <label><span>Priorität</span><select name="priority"><option value="">Alle Prioritäten</option><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= filters.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
+    <button class="button button-secondary" type="submit">Filtern</button>
+    <% if (filters.q || filters.status || filters.priority) { %><a class="text-link" href="/tickets">Zurücksetzen</a><% } %>
+  </form>
+  <div class="result-count"><strong><%= tickets.length %></strong> Tickets gefunden</div>
+  <%- include('../partials/ticket-table', { tickets }) %>
+</section>

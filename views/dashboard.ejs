@@ -1,0 +1,49 @@
+<% layout('layout') -%>
+<div class="page-heading">
+  <div><p class="eyebrow">Übersicht</p><h1>Guten Tag, <%= currentUser.name.split(' ')[0] %>.</h1><p>Hier siehst du, was gerade Aufmerksamkeit braucht.</p></div>
+  <a class="button button-primary" href="/tickets/new">＋ Neues Ticket</a>
+</div>
+
+<section class="stat-grid" aria-label="Ticket-Kennzahlen">
+  <a class="stat-card stat-card-dark" href="/tickets">
+    <span class="stat-icon">▤</span><small>Tickets gesamt</small><strong><%= stats.total %></strong><span>Alle Vorgänge ansehen →</span>
+  </a>
+  <a class="stat-card" href="/tickets?status=open">
+    <span class="stat-icon stat-icon-blue">○</span><small>Neu & offen</small><strong><%= stats.open %></strong><span>Zu bearbeiten</span>
+  </a>
+  <a class="stat-card" href="/tickets?status=in_progress">
+    <span class="stat-icon stat-icon-violet">◒</span><small>In Bearbeitung</small><strong><%= stats.in_progress %></strong><span>Aktiv in Arbeit</span>
+  </a>
+  <a class="stat-card" href="/tickets?priority=urgent">
+    <span class="stat-icon stat-icon-red">!</span><small>Dringend</small><strong><%= stats.urgent %></strong><span>Hohe Priorität</span>
+  </a>
+</section>
+
+<div class="dashboard-grid">
+  <section class="panel panel-wide">
+    <div class="panel-header"><div><h2>Aktuelle Tickets</h2><p>Zuletzt aktualisierte Vorgänge</p></div><a href="/tickets">Alle anzeigen</a></div>
+    <%- include('partials/ticket-table', { tickets }) %>
+  </section>
+  <aside class="panel">
+    <% if (currentUser.role !== 'requester') { %>
+      <div class="panel-header"><div><h2>Team-Auslastung</h2><p>Offene Zuweisungen</p></div></div>
+      <div class="workload-list">
+        <% const maxLoad = Math.max(...workload.map(item => Number(item.ticket_count)), 1); %>
+        <% workload.forEach(member => { %>
+          <div class="workload-item">
+            <div class="avatar avatar-soft"><%= initials(member.name) %></div>
+            <div><span><strong><%= member.name %></strong><small><%= member.ticket_count %> Tickets</small></span><progress max="<%= maxLoad %>" value="<%= member.ticket_count %>"></progress></div>
+          </div>
+        <% }) %>
+        <% if (!workload.length) { %><p class="empty-small">Noch keine Teammitglieder vorhanden.</p><% } %>
+      </div>
+    <% } else { %>
+      <div class="panel-header"><div><h2>Dein Status</h2><p>Fortschritt deiner Anfragen</p></div></div>
+      <div class="requester-summary">
+        <div class="summary-ring"><strong><%= stats.completed %></strong><span>gelöst</span></div>
+        <p><strong><%= stats.open + stats.in_progress + stats.waiting %></strong> deiner Tickets sind derzeit noch aktiv.</p>
+        <a class="button button-secondary button-full" href="/tickets">Meine Tickets</a>
+      </div>
+    <% } %>
+  </aside>
+</div>

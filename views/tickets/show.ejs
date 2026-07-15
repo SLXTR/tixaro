@@ -1,0 +1,58 @@
+<% layout('layout') -%>
+<div class="ticket-heading">
+  <div>
+    <div class="ticket-kicker"><a href="/tickets">Tickets</a><span>/</span><strong><%= ticket.ticket_number %></strong></div>
+    <h1><%= ticket.subject %></h1>
+    <div class="ticket-heading-meta"><span class="badge badge-status-<%= ticket.status %>"><i></i><%= statusLabel(ticket.status) %></span><span class="priority priority-<%= ticket.priority %>"><%= priorityLabel(ticket.priority) %></span><span>Erstellt <%= formatDateTime(ticket.created_at) %></span></div>
+  </div>
+  <a class="button button-secondary" href="/tickets">← Zur Liste</a>
+</div>
+
+<div class="ticket-detail-grid">
+  <div class="conversation-column">
+    <article class="message-card message-original">
+      <header><span class="avatar"><%= initials(ticket.requester_name) %></span><div><strong><%= ticket.requester_name %></strong><small>Anfrage · <%= formatDateTime(ticket.created_at) %></small></div></header>
+      <div class="message-body"><%= ticket.description %></div>
+    </article>
+    <% comments.forEach(comment => { %>
+      <article class="message-card <%= comment.is_internal ? 'message-internal' : '' %>">
+        <header><span class="avatar <%= comment.is_internal ? 'avatar-warm' : 'avatar-soft' %>"><%= initials(comment.author_name) %></span><div><strong><%= comment.author_name %></strong><small><%= comment.is_internal ? 'Interne Notiz' : roleLabel(comment.author_role) %> · <%= formatDateTime(comment.created_at) %></small></div><% if (comment.is_internal) { %><span class="internal-label">Nur Team</span><% } %></header>
+        <div class="message-body"><%= comment.body %></div>
+      </article>
+    <% }) %>
+    <form class="reply-box" action="/tickets/<%= ticket.id %>/comments" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="reply-title"><div><strong>Antwort hinzufügen</strong><small>Die Antwort ist anschließend direkt im Ticket sichtbar.</small></div></div>
+      <textarea name="body" rows="5" placeholder="Nachricht schreiben …" required></textarea>
+      <div class="reply-actions">
+        <% if (currentUser.role !== 'requester') { %><label class="check-label"><input type="checkbox" name="is_internal"><span>Als interne Notiz speichern</span></label><% } else { %><span></span><% } %>
+        <button class="button button-primary" type="submit">Antwort speichern</button>
+      </div>
+    </form>
+  </div>
+
+  <aside class="ticket-sidebar">
+    <% if (currentUser.role !== 'requester') { %>
+      <form class="panel side-form" action="/tickets/<%= ticket.id %>/update" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="panel-header"><div><h2>Ticket steuern</h2><p>Status und Verantwortung</p></div></div>
+        <label>Status<select name="status"><% ['open','in_progress','waiting','resolved','closed'].forEach(value => { %><option value="<%= value %>" <%= ticket.status === value ? 'selected' : '' %>><%= statusLabel(value) %></option><% }) %></select></label>
+        <label>Priorität<select name="priority"><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= ticket.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
+        <label>Zuständig<select name="assignee_id"><option value="">Nicht zugewiesen</option><% agents.forEach(agent => { %><option value="<%= agent.id %>" <%= ticket.assignee_id === agent.id ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
+        <label>Kategorie<input type="text" name="category" value="<%= ticket.category %>" maxlength="80"></label>
+        <label>Fällig am<input type="datetime-local" name="due_at" value="<%= ticket.due_at ? new Date(ticket.due_at).toISOString().slice(0,16) : '' %>"></label>
+        <button class="button button-primary button-full" type="submit">Änderungen speichern</button>
+      </form>
+    <% } %>
+    <section class="panel detail-list">
+      <div class="panel-header"><div><h2>Details</h2><p>Informationen zum Ticket</p></div></div>
+      <dl><div><dt>Anfragende Person</dt><dd><strong><%= ticket.requester_name %></strong><small><%= ticket.requester_email %></small></dd></div><div><dt>Zuständig</dt><dd><%= ticket.assignee_name || 'Nicht zugewiesen' %></dd></div><div><dt>Kategorie</dt><dd><%= ticket.category %></dd></div><div><dt>Fällig</dt><dd><%= formatDateTime(ticket.due_at) %></dd></div><div><dt>Letzte Änderung</dt><dd><%= formatDateTime(ticket.updated_at) %></dd></div></dl>
+    </section>
+    <% if (currentUser.role !== 'requester' && activity.length) { %>
+      <section class="panel activity-panel">
+        <div class="panel-header"><div><h2>Verlauf</h2><p>Letzte Aktivitäten</p></div></div>
+        <ol><% activity.slice(0,8).forEach(item => { %><li><i></i><div><strong><%= item.action === 'ticket_created' ? 'Ticket erstellt' : item.action === 'ticket_updated' ? 'Ticket aktualisiert' : 'Kommentar hinzugefügt' %></strong><span><%= item.actor_name || 'System' %> · <%= formatDateTime(item.created_at) %></span></div></li><% }) %></ol>
+      </section>
+    <% } %>
+  </aside>
+</div>

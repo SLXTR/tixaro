@@ -1,0 +1,20 @@
+<div class="table-wrap">
+  <table class="ticket-table">
+    <thead><tr><th>Ticket</th><th>Status</th><th>Priorität</th><th>Anfragende Person</th><th>Zuständig</th><th>Aktualisiert</th></tr></thead>
+    <tbody>
+      <% tickets.forEach(ticket => { %>
+        <tr>
+          <td><a class="ticket-link" href="/tickets/<%= ticket.id %>"><strong><%= ticket.ticket_number %></strong><span><%= ticket.subject %></span></a></td>
+          <td><span class="badge badge-status-<%= ticket.status %>"><i></i><%= statusLabel(ticket.status) %></span></td>
+          <td><span class="priority priority-<%= ticket.priority %>"><%= priorityLabel(ticket.priority) %></span></td>
+          <td><%= ticket.requester_name %></td>
+          <td><%= ticket.assignee_name || 'Nicht zugewiesen' %></td>
+          <td><%= formatDate(ticket.updated_at) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  <% if (!tickets.length) { %>
+    <div class="empty-state"><span>✓</span><h3>Alles erledigt</h3><p>Für diese Auswahl wurden keine Tickets gefunden.</p></div>
+  <% } %>
+</div>
