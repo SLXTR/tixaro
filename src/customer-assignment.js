@@ -1,3 +1,5 @@
+import { domainToASCII } from "node:url";
+
 const sharedEmailDomains = new Set([
   "aol.com",
   "gmail.com",
@@ -20,18 +22,26 @@ export function emailDomain(value) {
   const email = String(value ?? "").trim().toLowerCase();
   const separator = email.lastIndexOf("@");
   if (separator <= 0 || separator === email.length - 1) return null;
-  const domain = email.slice(separator + 1).replace(/\.$/, "");
-  if (!domain || domain.includes(" ") || !/^[a-z0-9.-]+$/i.test(domain)) return null;
-  return domain;
+  return normalizeCustomerDomain(email.slice(separator + 1));
 }
 
 export function isCompanyEmailDomain(domain) {
   return Boolean(domain) && !sharedEmailDomains.has(domain);
 }
 
+export function normalizeCustomerDomain(value) {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/^@/, "").replace(/\.$/, "");
+  if (!raw || raw.length > 253 || raw.includes(":") || raw.includes("/") || raw.includes("@") || /\s/.test(raw)) return null;
+  const domain = domainToASCII(raw).toLowerCase();
+  if (!domain || !domain.includes(".") || !/^[a-z0-9.-]+$/.test(domain)) return null;
+  const labels = domain.split(".");
+  if (labels.some((label) => !label || label.length > 63 || label.startsWith("-") || label.endsWith("-"))) return null;
+  return domain;
+}
+
 async function activeCustomers(client) {
   const result = await client.query(
-    "SELECT id, name, email FROM customers WHERE status <> 'inactive' AND email IS NOT NULL ORDER BY id"
+    "SELECT id, name, domain FROM customers WHERE status <> 'inactive' AND domain IS NOT NULL ORDER BY id"
   );
   return result.rows;
 }
@@ -39,13 +49,33 @@ async function activeCustomers(client) {
 function uniqueCustomersByDomain(customers) {
   const domains = new Map();
   for (const customer of customers) {
-    const domain = emailDomain(customer.email);
+    const domain = normalizeCustomerDomain(customer.domain);
     if (!isCompanyEmailDomain(domain)) continue;
     const matches = domains.get(domain) ?? [];
     matches.push(customer);
     domains.set(domain, matches);
   }
   return new Map(Array.from(domains.entries()).filter(([, matches]) => matches.length === 1));
+}
+
+export async function assignCustomerUser(client, { userId, customerId }) {
+  await client.query(
+    `INSERT INTO customer_profiles (user_id, customer_id) VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE SET customer_id = EXCLUDED.customer_id, updated_at = NOW()`,
+    [userId, customerId]
+  );
+}
+
+export async function migrateCustomerDomains(client) {
+  const result = await client.query("SELECT id, email, domain FROM customers ORDER BY id");
+  const usedDomains = new Set(result.rows.map((customer) => normalizeCustomerDomain(customer.domain)).filter(Boolean));
+  for (const customer of result.rows) {
+    if (normalizeCustomerDomain(customer.domain)) continue;
+    const domain = emailDomain(customer.email);
+    if (!isCompanyEmailDomain(domain) || usedDomains.has(domain)) continue;
+    await client.query("UPDATE customers SET domain = $1 WHERE id = $2 AND domain IS NULL", [domain, customer.id]);
+    usedDomains.add(domain);
+  }
 }
 
 export async function autoAssignCustomerUser(client, { userId, email }) {

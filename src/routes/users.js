@@ -2,11 +2,20 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import { requireAuth, requirePermission } from "../middleware.js";
 import { setFlash } from "../security.js";
-import { autoAssignCustomerUser } from "../customer-assignment.js";
+import { assignCustomerUser, autoAssignCustomerUser } from "../customer-assignment.js";
 import { assignSystemRoleForLegacyRole } from "../access-control.js";
 import { userName, userNamesFromBody, validUserNames } from "../user-names.js";
 
 const roles = ["admin", "agent", "requester"];
+
+function positiveInt(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function customerOptions(pool) {
+  return pool.query("SELECT id, name, customer_number, domain FROM customers WHERE status <> 'inactive' ORDER BY name");
+}
 
 async function userList(pool) {
   const result = await pool.query(
@@ -44,8 +53,8 @@ export function usersRouter({ pool }) {
   router.use(requirePermission("users.manage"));
 
   router.get("/", async (_req, res) => {
-    const result = await userList(pool);
-    res.render("users/index", { title: "Benutzer", users: result.rows, error: null, values: {} });
+    const [result, customers] = await Promise.all([userList(pool), customerOptions(pool)]);
+    res.render("users/index", { title: "Benutzer", users: result.rows, customers: customers.rows, error: null, values: {} });
   });
 
   router.post("/", async (req, res) => {
@@ -53,19 +62,22 @@ export function usersRouter({ pool }) {
     const email = String(req.body.email ?? "").trim().toLowerCase();
     const password = String(req.body.password ?? "");
     const role = roles.includes(req.body.role) ? req.body.role : "requester";
-    if (!validUserNames(firstName, lastName) || !email.includes("@") || password.length < 10) {
-      const result = await userList(pool);
+    const customerId = role === "requester" ? positiveInt(req.body.customer_id) : null;
+    const [result, customers] = await Promise.all([userList(pool), customerOptions(pool)]);
+    const selectedCustomer = customerId ? customers.rows.find((customer) => customer.id === customerId) : null;
+    if (!validUserNames(firstName, lastName) || !email.includes("@") || password.length < 10 || (customerId && !selectedCustomer)) {
       return res.status(422).render("users/index", {
         title: "Benutzer",
         users: result.rows,
-        error: "Vorname, Nachname und E-Mail-Adresse sind erforderlich; das Passwort muss mindestens 10 Zeichen haben.",
+        customers: customers.rows,
+        error: customerId && !selectedCustomer ? "Der ausgewählte Kunde existiert nicht oder ist inaktiv."
+          : "Vorname, Nachname und E-Mail-Adresse sind erforderlich; das Passwort muss mindestens 10 Zeichen haben.",
         values: req.body
       });
     }
     const duplicate = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
     if (duplicate.rowCount) {
-      const result = await userList(pool);
-      return res.status(409).render("users/index", { title: "Benutzer", users: result.rows, error: "Diese E-Mail-Adresse wird bereits verwendet.", values: req.body });
+      return res.status(409).render("users/index", { title: "Benutzer", users: result.rows, customers: customers.rows, error: "Diese E-Mail-Adresse wird bereits verwendet.", values: req.body });
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const client = await pool.connect();
@@ -77,7 +89,12 @@ export function usersRouter({ pool }) {
         [firstName, lastName, name, email, passwordHash, role]
       );
       await assignSystemRoleForLegacyRole(client, user.rows[0].id, role);
-      if (role === "requester") assignment = await autoAssignCustomerUser(client, { userId: user.rows[0].id, email });
+      if (role === "requester" && selectedCustomer) {
+        await assignCustomerUser(client, { userId: user.rows[0].id, customerId: selectedCustomer.id });
+        assignment = { assigned: true, customer: selectedCustomer };
+      } else if (role === "requester") {
+        assignment = await autoAssignCustomerUser(client, { userId: user.rows[0].id, email });
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -91,15 +108,18 @@ export function usersRouter({ pool }) {
 
   router.get("/:id/edit", async (req, res) => {
     const id = Number.parseInt(req.params.id, 10);
-    const result = await pool.query(
-      `SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.role, u.active,
-              c.name AS customer_name
-       FROM users u LEFT JOIN customer_profiles cp ON cp.user_id = u.id
-       LEFT JOIN customers c ON c.id = cp.customer_id WHERE u.id = $1`,
-      [id]
-    );
+    const [result, customers] = await Promise.all([
+      pool.query(
+        `SELECT u.id, u.first_name, u.last_name, u.name, u.email, u.role, u.active,
+                cp.customer_id, c.name AS customer_name
+         FROM users u LEFT JOIN customer_profiles cp ON cp.user_id = u.id
+         LEFT JOIN customers c ON c.id = cp.customer_id WHERE u.id = $1`,
+        [id]
+      ),
+      customerOptions(pool)
+    ]);
     if (!result.rowCount) return res.status(404).render("error", { title: "Benutzer nicht gefunden", message: "Das Benutzerkonto existiert nicht." });
-    res.render("users/edit", { title: "Benutzer bearbeiten", editedUser: result.rows[0], roles, error: null, values: result.rows[0] });
+    res.render("users/edit", { title: "Benutzer bearbeiten", editedUser: result.rows[0], roles, customers: customers.rows, error: null, values: result.rows[0] });
   });
 
   router.post("/:id/preview", async (req, res) => {
@@ -126,21 +146,30 @@ export function usersRouter({ pool }) {
 
   router.post("/:id/update", async (req, res) => {
     const id = Number.parseInt(req.params.id, 10);
-    const existingResult = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+    const existingResult = await pool.query(
+      `SELECT u.*, cp.customer_id, c.name AS customer_name
+       FROM users u LEFT JOIN customer_profiles cp ON cp.user_id = u.id
+       LEFT JOIN customers c ON c.id = cp.customer_id WHERE u.id = $1`,
+      [id]
+    );
     if (!existingResult.rowCount) return res.status(404).render("error", { title: "Benutzer nicht gefunden", message: "Das Benutzerkonto existiert nicht." });
     const existing = existingResult.rows[0];
     const { firstName, lastName, name } = userNamesFromBody(req.body);
     const email = String(req.body.email ?? "").trim().toLowerCase();
     const role = id === req.user.id ? existing.role : (roles.includes(req.body.role) ? req.body.role : existing.role);
     const password = String(req.body.password ?? "");
+    const customerId = role === "requester" ? positiveInt(req.body.customer_id) : null;
+    const customers = await customerOptions(pool);
+    const selectedCustomer = customerId ? customers.rows.find((customer) => customer.id === customerId) : null;
     const duplicate = await pool.query("SELECT id FROM users WHERE email = $1 AND id <> $2", [email, id]);
     const error = !validUserNames(firstName, lastName) ? "Vor- und Nachname müssen jeweils mindestens zwei Zeichen enthalten."
       : !email.includes("@") ? "Bitte gib eine gültige E-Mail-Adresse ein."
         : password && password.length < 10 ? "Das neue Passwort muss mindestens 10 Zeichen enthalten."
-          : duplicate.rowCount ? "Diese E-Mail-Adresse wird bereits verwendet." : null;
+          : duplicate.rowCount ? "Diese E-Mail-Adresse wird bereits verwendet."
+            : customerId && !selectedCustomer ? "Der ausgewählte Kunde existiert nicht oder ist inaktiv." : null;
     if (error) {
       return res.status(422).render("users/edit", {
-        title: "Benutzer bearbeiten", editedUser: existing, roles, error, values: { ...existing, ...req.body }
+        title: "Benutzer bearbeiten", editedUser: existing, roles, customers: customers.rows, error, values: { ...existing, ...req.body }
       });
     }
     const client = await pool.connect();
@@ -159,7 +188,13 @@ export function usersRouter({ pool }) {
         );
         await assignSystemRoleForLegacyRole(client, id, role);
       }
-      if (role === "requester") await autoAssignCustomerUser(client, { userId: id, email });
+      if (role === "requester" && selectedCustomer) {
+        await assignCustomerUser(client, { userId: id, customerId: selectedCustomer.id });
+      } else if (role === "requester" && !existing.customer_id) {
+        await autoAssignCustomerUser(client, { userId: id, email });
+      } else if (role !== "requester") {
+        await client.query("DELETE FROM customer_profiles WHERE user_id = $1", [id]);
+      }
       await client.query("COMMIT");
     } catch (updateError) {
       await client.query("ROLLBACK");

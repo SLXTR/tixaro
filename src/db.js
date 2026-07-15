@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import pg from "pg";
-import { backfillCustomerUsers } from "./customer-assignment.js";
+import { backfillCustomerUsers, migrateCustomerDomains } from "./customer-assignment.js";
 import { assignSystemRoleForLegacyRole, syncAccessControl } from "./access-control.js";
 import { splitUserName, userName } from "./user-names.js";
 
@@ -76,6 +76,7 @@ const schemaStatements = [
     customer_number VARCHAR(32) NOT NULL UNIQUE,
     name VARCHAR(180) NOT NULL,
     industry VARCHAR(120),
+    domain VARCHAR(255),
     email VARCHAR(255),
     phone VARCHAR(80),
     website VARCHAR(255),
@@ -309,6 +310,7 @@ const schemaStatements = [
   `ALTER TABLE comments ADD COLUMN IF NOT EXISTS work_minutes INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE customers ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6)`,
   `ALTER TABLE customers ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6)`,
+  `ALTER TABLE customers ADD COLUMN IF NOT EXISTS domain VARCHAR(255)`,
   `UPDATE tickets SET category = 'Allgemeiner Support' WHERE category = 'Allgemein'`,
   `UPDATE tickets SET response_due_at = created_at + INTERVAL '8 hours' WHERE response_due_at IS NULL`,
   `UPDATE tickets SET resolution_due_at = created_at + INTERVAL '48 hours' WHERE resolution_due_at IS NULL`,
@@ -323,6 +325,7 @@ const schemaStatements = [
   `CREATE INDEX IF NOT EXISTS idx_comments_ticket ON comments(ticket_id, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_work_logs_ticket ON ticket_work_logs(ticket_id, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_customer_profiles_customer ON customer_profiles(customer_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_domain_unique ON customers(domain)`,
   `CREATE INDEX IF NOT EXISTS idx_assets_customer ON assets(customer_id)`,
   `CREATE INDEX IF NOT EXISTS idx_assets_assigned_user ON assets(assigned_user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_asset_history_asset ON asset_assignment_history(asset_id, valid_from DESC)`,
@@ -415,6 +418,7 @@ export async function createDatabase(config) {
   for (const statement of configurationSeedStatements) {
     await pool.query(statement);
   }
+  await migrateCustomerDomains(pool);
   await syncAccessControl(pool);
   await backfillCustomerUsers(pool);
 

@@ -13,7 +13,7 @@
             <span class="company-avatar"><%= initials(customer.name) %></span>
             <div class="customer-card-main">
               <div class="customer-card-title"><strong><%= customer.name %></strong><span class="status-pill status-<%= customer.status %>"><%= customerStatusLabel(customer.status) %></span></div>
-              <small><%= customer.customer_number %><%= customer.industry ? ` · ${customer.industry}` : '' %></small>
+              <small><%= customer.customer_number %><%= customer.domain ? ` · @${customer.domain}` : '' %><%= customer.industry ? ` · ${customer.industry}` : '' %></small>
               <div class="customer-card-stats">
                 <span><b><%= customer.contact_count %></b> Kontakte</span>
                 <span><b><%= customer.asset_count %></b> Ressourcen</span>
@@ -36,7 +36,7 @@
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <label>Firmenname<input type="text" name="name" value="<%= values.name || '' %>" minlength="2" required autofocus></label>
       <label>Branche<input type="text" name="industry" value="<%= values.industry || '' %>" placeholder="z. B. Steuerberatung"></label>
-      <label>E-Mail-Adresse<input type="email" name="email" value="<%= values.email || '' %>"><small>Die Domain dient zur automatischen Zuordnung von Kundenbenutzern.</small></label>
+      <label>Firmendomain<input type="text" name="domain" value="<%= values.domain || '' %>" placeholder="beispiel.de" inputmode="url" required><small>Kundenbenutzer mit dieser E-Mail-Domain werden automatisch zugeordnet.</small></label>
       <label>Telefon<input type="tel" name="phone" value="<%= values.phone || '' %>"></label>
       <div class="address-autocomplete" data-address-autocomplete>
         <label>Adresse<input type="text" name="address" value="<%= values.address || '' %>" autocomplete="street-address" placeholder="Straße und Hausnummer" data-address-input></label>

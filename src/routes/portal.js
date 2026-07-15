@@ -34,7 +34,7 @@ export function portalRouter({ pool }) {
       ),
       pool.query(
         `SELECT cp.job_title, cp.department, cp.phone, cp.site,
-                c.name AS customer_name, c.customer_number, c.email AS customer_email, c.phone AS customer_phone
+                c.name AS customer_name, c.customer_number, c.domain AS customer_domain, c.phone AS customer_phone
          FROM customer_profiles cp JOIN customers c ON c.id = cp.customer_id
          WHERE cp.user_id = $1`,
         [req.user.id]

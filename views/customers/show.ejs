@@ -3,7 +3,7 @@
   <div>
     <div class="ticket-kicker"><a href="/customers">CRM</a><span>/</span><strong><%= customer.customer_number %></strong></div>
     <h1><%= customer.name %></h1>
-    <div class="ticket-heading-meta"><span class="status-pill status-<%= customer.status %>"><%= customerStatusLabel(customer.status) %></span><span><%= customer.industry || 'Branche nicht hinterlegt' %></span><span><%= customer.city || 'Kein Standort' %></span></div>
+    <div class="ticket-heading-meta"><span class="status-pill status-<%= customer.status %>"><%= customerStatusLabel(customer.status) %></span><span><%= customer.domain ? `@${customer.domain}` : 'Domain noch nicht hinterlegt' %></span><span><%= customer.industry || 'Branche nicht hinterlegt' %></span><span><%= customer.city || 'Kein Standort' %></span></div>
   </div>
   <div class="ticket-heading-actions"><a class="button button-primary" href="/tickets/new">Ticket erstellen</a><a class="button button-secondary" href="/customers">← Kundenstamm</a></div>
 </div>
@@ -78,7 +78,7 @@
       <div class="panel-header"><div><h2>Stammdaten</h2></div></div>
       <label>Firmenname<input type="text" name="name" value="<%= customer.name %>" required></label>
       <label>Branche<input type="text" name="industry" value="<%= customer.industry || '' %>"></label>
-      <label>E-Mail<input type="email" name="email" value="<%= customer.email || '' %>"><small>Eindeutige Firmendomains ordnen unzugewiesene Kundenbenutzer automatisch zu.</small></label>
+      <label>Firmendomain<input type="text" name="domain" value="<%= customer.domain || '' %>" placeholder="beispiel.de" inputmode="url" required><small>Die Domain ist eindeutig und steuert die automatische Zuordnung.</small></label>
       <label>Telefon<input type="tel" name="phone" value="<%= customer.phone || '' %>"></label>
       <label>Website<input type="url" name="website" value="<%= customer.website || '' %>" placeholder="https://"></label>
       <div class="address-autocomplete" data-address-autocomplete>
@@ -93,6 +93,16 @@
       <label>Interne Notizen<textarea name="notes" rows="4"><%= customer.notes || '' %></textarea></label>
       <button class="button button-primary button-full" type="submit">Stammdaten speichern</button>
     </form>
+
+    <% if (can('customers.manage') && assignableContacts.length) { %>
+      <form class="panel form-panel" action="/customers/<%= customer.id %>/contacts/assign" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="panel-header"><div><h2>Bestehenden Benutzer zuordnen</h2></div></div>
+        <label>Kundenbenutzer<select name="user_id" required><option value="">Bitte auswählen</option><% assignableContacts.forEach(contact => { %><option value="<%= contact.id %>"><%= contact.name %> · <%= contact.email %><%= contact.current_customer_name ? ` · bisher ${contact.current_customer_name}` : '' %></option><% }) %></select></label>
+        <small>Die bisherige Kundenzuordnung wird ersetzt. Das Benutzerkonto und seine Tickets bleiben erhalten.</small>
+        <button class="button button-secondary button-full" type="submit">Kundenbenutzer zuordnen</button>
+      </form>
+    <% } %>
 
     <form class="panel form-panel" action="/customers/<%= customer.id %>/contacts" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">

@@ -13,6 +13,7 @@ import { searchAddresses } from "../src/address-search.js";
 import { ingestInboundMessage, sendTicketEmail } from "../src/mail-service.js";
 import { compareVersions, fetchLatestRelease, installUpdate, updateOverview } from "../src/system-update.js";
 import { loadSystemConfiguration } from "../src/system-configuration.js";
+import { migrateCustomerDomains } from "../src/customer-assignment.js";
 
 let pool;
 let app;
@@ -90,16 +91,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.12",
-          name: "Tixaro 1.0.12",
+          tag_name: "v1.0.13",
+          name: "Tixaro 1.0.13",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.12",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.13",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.12");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.13");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -155,7 +156,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.11");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.12");
   assert.match(readme, /Vollständig deinstallieren/);
   assert.match(stylesheet, /--font-xs: 15px/);
   assert.match(stylesheet, /body \{[^}]*font: 18px\/1\.55/);
@@ -378,7 +379,7 @@ test("Agenten wählen den Ticketkanal und Administratoren konfigurieren Nummernk
 
   page = await agent.get("/customers").expect(200);
   await agent.post("/customers").type("form").send({
-    _csrf: csrfFrom(page.text), name: "Nummernkreis Kunde GmbH", email: "kontakt@nummernkreis.test", status: "active"
+    _csrf: csrfFrom(page.text), name: "Nummernkreis Kunde GmbH", domain: "nummernkreis.test", status: "active"
   }).expect(302);
   const customer = await pool.query("SELECT customer_number FROM customers WHERE name = 'Nummernkreis Kunde GmbH'");
   assert.match(customer.rows[0].customer_number, /^KND-\d{4}-\d{5}$/);
@@ -642,14 +643,25 @@ test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordne
     password: config.adminPassword
   }).expect(302);
 
+  const legacyCustomer = await pool.query(
+    "INSERT INTO customers (customer_number, name, email) VALUES ('CUS-LEGACY-DOMAIN', 'Bestehender Domainkunde', 'kontakt@legacy-domain.test') RETURNING id"
+  );
+  await migrateCustomerDomains(pool);
+  const migratedDomain = await pool.query("SELECT domain FROM customers WHERE id = $1", [legacyCustomer.rows[0].id]);
+  assert.equal(migratedDomain.rows[0].domain, "legacy-domain.test");
+
   page = await agent.get("/customers").expect(200);
+  assert.match(page.text, /name="domain"/);
+  assert.doesNotMatch(page.text, /name="email"/);
   await agent.post("/customers").type("form").send({
     _csrf: csrfFrom(page.text),
     name: "Domain Automatik GmbH",
-    email: "kontakt@domain-automatik.test",
+    domain: "domain-automatik.test",
     status: "active"
   }).expect(302);
-  const automaticCustomer = await pool.query("SELECT id FROM customers WHERE name = 'Domain Automatik GmbH'");
+  const automaticCustomer = await pool.query("SELECT id, domain, email FROM customers WHERE name = 'Domain Automatik GmbH'");
+  assert.equal(automaticCustomer.rows[0].domain, "domain-automatik.test");
+  assert.equal(automaticCustomer.rows[0].email, null);
 
   page = await agent.get("/users").expect(200);
   await agent.post("/users").type("form").send({
@@ -683,7 +695,7 @@ test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordne
   await agent.post("/customers").type("form").send({
     _csrf: csrfFrom(page.text),
     name: "Späterer Kunde GmbH",
-    email: "service@spaeterer-kunde.test",
+    domain: "spaeterer-kunde.test",
     status: "active"
   }).expect(302);
   delayedAssignment = await pool.query(
@@ -694,53 +706,47 @@ test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordne
   assert.equal(delayedAssignment.rows[0].name, "Späterer Kunde GmbH");
 
   page = await agent.get("/customers").expect(200);
-  await agent.post("/customers").type("form").send({
+  const rejectedSharedDomain = await agent.post("/customers").type("form").send({
     _csrf: csrfFrom(page.text),
     name: "Freie Mailadresse GmbH",
-    email: "firma@gmail.com",
+    domain: "gmail.com",
     status: "active"
-  }).expect(302);
-  page = await agent.get("/users").expect(200);
-  await agent.post("/users").type("form").send({
-    _csrf: csrfFrom(page.text),
-    name: "Privater Nutzer",
-    email: "privat@gmail.com",
-    role: "requester",
-    password: "Customer123!"
-  }).expect(302);
-  const sharedDomainAssignment = await pool.query(
-    `SELECT cp.customer_id FROM customer_profiles cp JOIN users u ON u.id = cp.user_id
-     WHERE u.email = 'privat@gmail.com'`
-  );
-  assert.equal(sharedDomainAssignment.rowCount, 0);
+  }).expect(422);
+  assert.match(rejectedSharedDomain.text, /Öffentliche Maildomains sind nicht zulässig/);
 
   page = await agent.get("/customers").expect(200);
-  const customerToken = csrfFrom(page.text);
   await agent.post("/customers").type("form").send({
-    _csrf: customerToken,
-    name: "Geteilte Domain Nord GmbH",
-    email: "nord@geteilte-domain.test",
+    _csrf: csrfFrom(page.text),
+    name: "Eindeutige Domain GmbH",
+    domain: "eindeutige-domain.test",
     status: "active"
   }).expect(302);
-  await agent.post("/customers").type("form").send({
-    _csrf: customerToken,
-    name: "Geteilte Domain Süd GmbH",
-    email: "sued@geteilte-domain.test",
+  page = await agent.get("/customers").expect(200);
+  const duplicateDomain = await agent.post("/customers").type("form").send({
+    _csrf: csrfFrom(page.text),
+    name: "Doppelte Domain GmbH",
+    domain: "eindeutige-domain.test",
     status: "active"
-  }).expect(302);
+  }).expect(422);
+  assert.match(duplicateDomain.text, /bereits einem anderen Kunden zugeordnet/);
+
   page = await agent.get("/users").expect(200);
   await agent.post("/users").type("form").send({
     _csrf: csrfFrom(page.text),
-    name: "Nicht eindeutig",
-    email: "kontakt@geteilte-domain.test",
+    name: "Manuell Zuordnen",
+    email: "manuell@ohne-matching.test",
     role: "requester",
     password: "Customer123!"
   }).expect(302);
-  const ambiguousAssignment = await pool.query(
-    `SELECT cp.customer_id FROM customer_profiles cp JOIN users u ON u.id = cp.user_id
-     WHERE u.email = 'kontakt@geteilte-domain.test'`
-  );
-  assert.equal(ambiguousAssignment.rowCount, 0);
+  const manualUser = await pool.query("SELECT id FROM users WHERE email = 'manuell@ohne-matching.test'");
+  const manualCustomer = await pool.query("SELECT id FROM customers WHERE name = 'Eindeutige Domain GmbH'");
+  page = await agent.get(`/customers/${manualCustomer.rows[0].id}`).expect(200);
+  assert.match(page.text, /Bestehenden Benutzer zuordnen/);
+  await agent.post(`/customers/${manualCustomer.rows[0].id}/contacts/assign`).type("form").send({
+    _csrf: csrfFrom(page.text), user_id: manualUser.rows[0].id
+  }).expect(302);
+  const manualAssignment = await pool.query("SELECT customer_id FROM customer_profiles WHERE user_id = $1", [manualUser.rows[0].id]);
+  assert.equal(manualAssignment.rows[0].customer_id, manualCustomer.rows[0].id);
 });
 
 test("OTRS-Ablauf unterstützt Übernahme, SLA-Pause und getrennte Taktabrechnung", async () => {
@@ -838,7 +844,7 @@ test("CRM-Ressource wird einem Kundenbenutzer zugeordnet und im Ticket angezeigt
     _csrf: csrfFrom(page.text),
     name: "Beispiel & Partner GmbH",
     industry: "Beratung",
-    email: "kontakt@beispiel.test",
+    domain: "beispiel.test",
     status: "active"
   }).expect(302);
   const customer = await pool.query("SELECT id, customer_number FROM customers WHERE name = 'Beispiel & Partner GmbH'");
@@ -909,7 +915,7 @@ test("Kundenkarte und Ressourcenhistorie liefern Standort und Zuordnung zum Stic
   await agent.post("/customers").type("form").send({
     _csrf: csrfFrom(page.text),
     name: "Kartenkunde GmbH",
-    email: "kontakt@kartenkunde.test",
+    domain: "kartenkunde.test",
     address: "Pariser Platz 1",
     city: "Berlin",
     latitude: "52.5163",
@@ -1127,7 +1133,7 @@ test("Anfragende sehen keine fremden Tickets", async () => {
 test("Kundenbenutzer landen in einer eigenen, vereinfachten Portalansicht", async () => {
   const passwordHash = await bcrypt.hash("PortalKunde123!", 4);
   const customer = await pool.query(
-    "INSERT INTO customers (customer_number, name, email) VALUES ('CUS-PORTAL', 'Portal Kunde GmbH', 'info@portal-kunde.test') RETURNING id"
+    "INSERT INTO customers (customer_number, name, domain) VALUES ('CUS-PORTAL', 'Portal Kunde GmbH', 'portal-kunde.test') RETURNING id"
   );
   const requester = await pool.query(
     "INSERT INTO users (name, email, password_hash, role) VALUES ('Paula Portal', 'paula@portal-kunde.test', $1, 'requester') RETURNING id",

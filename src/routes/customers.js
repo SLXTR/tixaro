@@ -2,7 +2,9 @@ import bcrypt from "bcryptjs";
 import express from "express";
 import { requirePermission } from "../middleware.js";
 import { setFlash } from "../security.js";
-import { backfillCustomerUsers } from "../customer-assignment.js";
+import {
+  assignCustomerUser, backfillCustomerUsers, isCompanyEmailDomain, normalizeCustomerDomain
+} from "../customer-assignment.js";
 import { assignSystemRoleForLegacyRole } from "../access-control.js";
 import { searchAddresses } from "../address-search.js";
 import { createCustomerNumber } from "../number-formats.js";
@@ -31,6 +33,18 @@ async function customerList(pool) {
 async function getCustomer(pool, id) {
   const result = await pool.query("SELECT * FROM customers WHERE id = $1", [id]);
   return result.rows[0] ?? null;
+}
+
+function customerDomain(value) {
+  const domain = normalizeCustomerDomain(value);
+  return domain && isCompanyEmailDomain(domain) ? domain : null;
+}
+
+async function domainInUse(pool, domain, excludedCustomerId = null) {
+  const result = excludedCustomerId
+    ? await pool.query("SELECT id FROM customers WHERE domain = $1 AND id <> $2", [domain, excludedCustomerId])
+    : await pool.query("SELECT id FROM customers WHERE domain = $1", [domain]);
+  return result.rowCount > 0;
 }
 
 function coordinate(value, min, max) {
@@ -79,18 +93,21 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
 
   router.post("/", requirePermission("customers.manage"), async (req, res) => {
     const name = String(req.body.name ?? "").trim();
-    const email = String(req.body.email ?? "").trim().toLowerCase();
+    const domain = customerDomain(req.body.domain);
     const phone = String(req.body.phone ?? "").trim();
     const industry = String(req.body.industry ?? "").trim();
     const status = customerStatuses.includes(req.body.status) ? req.body.status : "active";
     const location = await locationFromForm(req.body, addressSearchUrl);
 
-    if (name.length < 2) {
+    const duplicateDomain = domain ? await domainInUse(pool, domain) : false;
+    if (name.length < 2 || !domain || duplicateDomain) {
       const result = await customerList(pool);
       return res.status(422).render("customers/index", {
         title: "Kunden",
         customers: result.rows,
-        error: "Bitte gib einen Firmennamen mit mindestens zwei Zeichen ein.",
+        error: name.length < 2 ? "Bitte gib einen Firmennamen mit mindestens zwei Zeichen ein."
+          : !domain ? "Bitte gib eine gültige, eigene Firmendomain ein. Öffentliche Maildomains sind nicht zulässig."
+            : "Diese Domain ist bereits einem anderen Kunden zugeordnet.",
         values: req.body,
         customerStatuses
       });
@@ -103,9 +120,9 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
     try {
       await client.query("BEGIN");
       const result = await client.query(
-        `INSERT INTO customers (customer_number, name, industry, email, phone, address, city, latitude, longitude, status)
+        `INSERT INTO customers (customer_number, name, industry, domain, phone, address, city, latitude, longitude, status)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-        [temporaryNumber, name, industry || null, email || null, phone || null, location.address, location.city,
+        [temporaryNumber, name, industry || null, domain, phone || null, location.address, location.city,
           location.latitude, location.longitude, status]
       );
       customerId = result.rows[0].id;
@@ -139,7 +156,7 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
     const customer = id ? await getCustomer(pool, id) : null;
     if (!customer) return res.status(404).render("error", { title: "Kunde nicht gefunden", message: "Der Kundeneintrag existiert nicht." });
 
-    const [contacts, assets, tickets] = await Promise.all([
+    const [contacts, assets, tickets, assignableContacts] = await Promise.all([
       pool.query(
         `SELECT u.id, u.name, u.email, u.active, u.last_login_at, cp.job_title, cp.department, cp.phone, cp.site,
                 COALESCE(t.ticket_count, 0)::int AS ticket_count, COALESCE(a.asset_count, 0)::int AS asset_count
@@ -163,6 +180,15 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
          LEFT JOIN users assignee ON assignee.id = t.assignee_id
          WHERE t.customer_id = $1 ORDER BY t.updated_at DESC LIMIT 20`,
         [customer.id]
+      ),
+      pool.query(
+        `SELECT u.id, u.name, u.email, current_customer.name AS current_customer_name
+         FROM users u
+         LEFT JOIN customer_profiles cp ON cp.user_id = u.id
+         LEFT JOIN customers current_customer ON current_customer.id = cp.customer_id
+         WHERE u.active = TRUE AND u.role = 'requester' AND (cp.customer_id IS NULL OR cp.customer_id <> $1)
+         ORDER BY current_customer.name NULLS FIRST, u.name`,
+        [customer.id]
       )
     ]);
 
@@ -175,6 +201,7 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
       customerStatuses,
       contactError: null,
       contactValues: {},
+      assignableContacts: assignableContacts.rows,
       ...customerMap(customer)
     });
   });
@@ -185,8 +212,13 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
     if (!customer) return res.status(404).render("error", { title: "Kunde nicht gefunden", message: "Der Kundeneintrag existiert nicht." });
 
     const name = String(req.body.name ?? "").trim();
-    if (name.length < 2) {
-      setFlash(req, "error", "Der Firmenname muss mindestens zwei Zeichen enthalten.");
+    const domain = customerDomain(req.body.domain);
+    const duplicateDomain = domain ? await domainInUse(pool, domain, customer.id) : false;
+    if (name.length < 2 || !domain || duplicateDomain) {
+      const message = name.length < 2 ? "Der Firmenname muss mindestens zwei Zeichen enthalten."
+        : !domain ? "Bitte gib eine gültige, eigene Firmendomain ein. Öffentliche Maildomains sind nicht zulässig."
+          : "Diese Domain ist bereits einem anderen Kunden zugeordnet.";
+      setFlash(req, "error", message);
       return res.redirect(`/customers/${customer.id}`);
     }
     const status = customerStatuses.includes(req.body.status) ? req.body.status : customer.status;
@@ -196,13 +228,13 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
     try {
       await client.query("BEGIN");
       await client.query(
-        `UPDATE customers SET name = $1, industry = $2, email = $3, phone = $4, website = $5,
+        `UPDATE customers SET name = $1, industry = $2, domain = $3, email = NULL, phone = $4, website = $5,
          address = $6, city = $7, latitude = $8, longitude = $9, notes = $10, status = $11,
          updated_at = NOW() WHERE id = $12`,
         [
           name,
           String(req.body.industry ?? "").trim() || null,
-          String(req.body.email ?? "").trim().toLowerCase() || null,
+          domain,
           String(req.body.phone ?? "").trim() || null,
           String(req.body.website ?? "").trim() || null,
           location.address,
@@ -224,6 +256,23 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
     }
     setFlash(req, "success", assignedCount ? `Kundendaten wurden aktualisiert und ${assignedCount} Benutzer zugeordnet.` : "Kundendaten wurden aktualisiert.");
     res.redirect(`/customers/${customer.id}`);
+  });
+
+  router.post("/:id/contacts/assign", requirePermission("customers.manage"), async (req, res) => {
+    const id = positiveInt(req.params.id);
+    const userId = positiveInt(req.body.user_id);
+    const [customer, user] = await Promise.all([
+      id ? getCustomer(pool, id) : null,
+      userId ? pool.query("SELECT id, name FROM users WHERE id = $1 AND active = TRUE AND role = 'requester'", [userId]) : Promise.resolve({ rowCount: 0, rows: [] })
+    ]);
+    if (!customer) return res.status(404).render("error", { title: "Kunde nicht gefunden", message: "Der Kundeneintrag existiert nicht." });
+    if (!user.rowCount) {
+      setFlash(req, "error", "Bitte wähle einen aktiven Kundenbenutzer aus.");
+      return res.redirect(`/customers/${customer.id}#contacts`);
+    }
+    await assignCustomerUser(pool, { userId, customerId: customer.id });
+    setFlash(req, "success", `${user.rows[0].name} wurde ${customer.name} zugeordnet.`);
+    res.redirect(`/customers/${customer.id}#contacts`);
   });
 
   router.post("/:id/contacts", requirePermission("customers.manage"), async (req, res) => {

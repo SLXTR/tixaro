@@ -17,7 +17,8 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 - CRM mit Unternehmen, Kundenstammdaten, Ansprechpartnern und Portalzugängen
 - Eigenes, vereinfachtes Kundenportal für Anfragen, Statusübersicht und zugeordnete Geräte
 - Adressvorschläge bei der Kundenerfassung und Kartenstandort in der Kundenakte auf Basis von Photon und OpenStreetMap
-- Automatische, eindeutige Zuordnung von Kundenbenutzern über die E-Mail-Firmendomain
+- Eigene Firmendomain je Kunde statt einer allgemeinen Kunden-E-Mail-Adresse
+- Automatische Domain-Zuordnung sowie manuelle Zuordnung und Umordnung bestehender Kundenbenutzer
 - Ressourcenverwaltung für Computer, Notebooks, Smartphones, Lizenzen und weitere Asset-Typen
 - Zuordnung von Ressourcen zu Unternehmen und einzelnen Kundenbenutzern
 - Automatische Geräteauswahl beim Erstellen eines Tickets für einen Kundenbenutzer
