@@ -6,7 +6,9 @@ server {
     client_max_body_size 10M;
 
     location / {
-        proxy_pass http://tixaro-app:3000;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $tixaro_upstream http://tixaro-app:3000;
+        proxy_pass $tixaro_upstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

@@ -116,7 +116,7 @@ Passe im letzten Befehl nur den Domainnamen an. Die lokale Portfreigabe ist auss
 
 ## Aktualisieren
 
-Unter **Einstellungen → Systemupdate** kann ein Administrator nach einem veröffentlichten GitHub-Release suchen und es mit einem Klick installieren. Der Host-Helfer übernimmt ausschließlich den angeforderten Release-Tag, prüft Fast-Forward-Fähigkeit und Versionsnummer, baut die Container neu und startet Tixaro. Lokale Änderungen brechen den Vorgang zum Schutz der Installation ab.
+Unter **Einstellungen → Systemupdate** kann ein Administrator nach einem veröffentlichten GitHub-Release suchen und es mit einem Klick installieren. Der Host-Helfer übernimmt ausschließlich den angeforderten Release-Tag, prüft Fast-Forward-Fähigkeit und Versionsnummer, baut die Container neu und startet Tixaro. Lokale Änderungen brechen den Vorgang zum Schutz der Installation ab. Nach dem Containerwechsel wartet das Skript auf den erfolgreichen Healthcheck und lädt einen verwendeten Nginx-Container kontrolliert neu, damit dessen Upstream nicht auf der alten Container-IP stehen bleibt.
 
 Installationen bis einschließlich Version 1.0.5 aktualisieren den Systemdienst einmalig manuell. Führe dazu als ursprünglicher Installationsbenutzer im Tixaro-Verzeichnis `git pull --ff-only` und anschließend `sh install.sh` aus. Ab Version 1.0.6 wird der Helfer direkt aus der Installation gestartet und bei künftigen Releases automatisch mitaktualisiert.
 

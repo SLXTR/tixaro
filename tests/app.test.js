@@ -90,16 +90,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.7",
-          name: "Tixaro 1.0.7",
+          tag_name: "v1.0.8",
+          name: "Tixaro 1.0.8",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.7",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.8",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.7");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.8");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -127,7 +127,13 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(installer, /docker ps --format 'table/);
   assert.match(installer, /docker network connect/);
   assert.match(installer, /TIXARO_PROXY_CONTAINER/);
-  assert.match(nginxContainer, /proxy_pass http:\/\/tixaro-app:3000/);
+  assert.match(nginxContainer, /resolver 127\.0\.0\.11 valid=10s ipv6=off/);
+  assert.match(nginxContainer, /set \$tixaro_upstream http:\/\/tixaro-app:3000/);
+  assert.match(nginxContainer, /proxy_pass \$tixaro_upstream/);
+  assert.match(installer, /wait_for_app_health/);
+  assert.match(installer, /reload_nginx_container/);
+  assert.match(installer, /docker exec "\$nginx_container" nginx -s reload/);
+  assert.ok(installer.lastIndexOf("wait_for_app_health") < installer.lastIndexOf('reload_nginx_container "$proxy_container"'));
   assert.match(installer, /tixaro-update\.timer/);
   assert.match(updateHelper, /git merge --ff-only/);
   assert.match(updateHelper, /releases\/latest/);
@@ -142,7 +148,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.6");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.7");
   assert.match(readme, /Vollständig deinstallieren/);
 });
 

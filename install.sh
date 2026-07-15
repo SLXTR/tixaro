@@ -58,6 +58,43 @@ host_nginx_is_running() {
   return 1
 }
 
+wait_for_app_health() {
+  attempt=1
+  while [ "$attempt" -le 45 ]; do
+    app_container_id="$(docker compose ps -q app)"
+    if [ -n "$app_container_id" ]; then
+      app_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$app_container_id" 2>/dev/null || true)"
+      case "$app_health" in
+        healthy|running) return 0 ;;
+        unhealthy|exited|dead)
+          echo "Der neue Tixaro-Container ist nicht fehlerfrei gestartet (Status: ${app_health})."
+          return 1
+          ;;
+      esac
+    fi
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  echo "Der neue Tixaro-Container wurde nicht rechtzeitig betriebsbereit."
+  return 1
+}
+
+reload_nginx_container() {
+  nginx_container="$1"
+  [ -n "$nginx_container" ] || return 1
+  attempt=1
+  while [ "$attempt" -le 15 ]; do
+    if docker exec "$nginx_container" nginx -t >/dev/null 2>&1 && docker exec "$nginx_container" nginx -s reload >/dev/null 2>&1; then
+      echo "Nginx im Container '$nginx_container' wurde auf den neuen Tixaro-Container umgeschaltet."
+      return 0
+    fi
+    sleep 2
+    attempt=$((attempt + 1))
+  done
+  echo "Nginx im Container '$nginx_container' konnte nicht geprüft oder neu geladen werden."
+  return 1
+}
+
 run_as_root() {
   if [ "$(id -u)" -eq 0 ]; then
     "$@"
@@ -247,7 +284,7 @@ if [ -z "$proxy_container" ] && [ -n "$proxy_candidates" ]; then
 fi
 
 mkdir -p "$generated_dir"
-sed -e "s/tickets.example.com/${nginx_server_name}/g" -e 's#127.0.0.1:3000#tixaro-app:3000#g' deploy/nginx.conf > "$generated_dir/nginx-container.conf"
+sed -e "s|\${TIXARO_SERVER_NAME}|${nginx_server_name}|g" deploy/nginx-container.conf.template > "$generated_dir/nginx-container.conf"
 
 if [ -n "$proxy_container" ]; then
   if ! docker inspect "$proxy_container" >/dev/null 2>&1 || [ "$(docker inspect -f '{{.State.Running}}' "$proxy_container")" != "true" ]; then
@@ -277,6 +314,26 @@ else
   docker compose -f docker-compose.yml -f docker-compose.nginx.yml up -d --build
   deployment_mode="bundled-nginx"
 fi
+
+if ! wait_for_app_health; then
+  exit 1
+fi
+
+case "$deployment_mode" in
+  container-proxy)
+    if ! reload_nginx_container "$proxy_container"; then
+      echo "Der Reverse Proxy konnte nicht auf den neuen Tixaro-Container umgeschaltet werden."
+      exit 1
+    fi
+    ;;
+  bundled-nginx)
+    bundled_nginx_container="$(docker compose -f docker-compose.yml -f docker-compose.nginx.yml ps -q nginx)"
+    if ! reload_nginx_container "$bundled_nginx_container"; then
+      echo "Der mitgelieferte Nginx konnte nicht auf den neuen Tixaro-Container umgeschaltet werden."
+      exit 1
+    fi
+    ;;
+esac
 
 set_env_value TIXARO_DEPLOYMENT_MODE "$deployment_mode"
 install_host_updater
