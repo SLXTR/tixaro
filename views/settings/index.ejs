@@ -123,7 +123,7 @@
         <div class="update-result"><strong>Update läuft</strong><p>Tixaro wird im Hintergrund aktualisiert und anschließend neu gestartet.</p></div>
       <% } %>
       <% if (updateState.hostStatus?.state === 'failed') { %>
-        <div class="form-error">Das letzte Update konnte nicht abgeschlossen werden. Prüfe auf dem Server den Dienst <code>tixaro-update</code>.</div>
+        <div class="form-error"><%= updateState.hostStatus.message || 'Das letzte Update konnte nicht abgeschlossen werden. Prüfe auf dem Server den Dienst tixaro-update.' %></div>
       <% } %>
     <% } else { %>
       <div class="update-result"><strong>Ein-Klick-Updates aktivieren</strong><p>Führe auf dem Linux-Server einmal <code>sh install.sh</code> aus. Danach können Updates hier gestartet werden.</p></div>

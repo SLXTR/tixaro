@@ -90,16 +90,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.5",
-          name: "Tixaro 1.0.5",
+          tag_name: "v1.0.6",
+          name: "Tixaro 1.0.6",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.5",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.6",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.5");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.6");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -107,13 +107,14 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
 });
 
 test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Reverse Proxy", async () => {
-  const [compose, installer, nginxContainer, updateHelper, packageMetadata, readme] = await Promise.all([
+  const [compose, installer, nginxContainer, updateHelper, packageMetadata, readme, settingsView] = await Promise.all([
     readFile(new URL("../docker-compose.yml", import.meta.url), "utf8"),
     readFile(new URL("../install.sh", import.meta.url), "utf8"),
     readFile(new URL("../deploy/nginx-container.conf.template", import.meta.url), "utf8"),
     readFile(new URL("../deploy/update-host.sh", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    readFile(new URL("../README.md", import.meta.url), "utf8")
+    readFile(new URL("../README.md", import.meta.url), "utf8"),
+    readFile(new URL("../views/settings/index.ejs", import.meta.url), "utf8")
   ]);
 
   assert.doesNotMatch(compose, /127\.0\.0\.1:\$\{APP_PORT:-3000\}:3000/);
@@ -129,8 +130,15 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(installer, /tixaro-update\.timer/);
   assert.match(updateHelper, /git merge --ff-only/);
   assert.match(updateHelper, /releases\/latest/);
+  assert.match(updateHelper, /TIXARO_GITHUB_TOKEN/);
+  assert.match(updateHelper, /User-Agent: Tixaro-Host-Updater/);
+  assert.match(updateHelper, /Das GitHub-API-Limit ist erreicht/);
+  assert.match(updateHelper, /status\.message = process\.argv\[3\]/);
+  assert.ok(updateHelper.indexOf('unlinkSync("/app/data/update-request.json")') < updateHelper.indexOf("api_status="));
+  assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
+  assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.4");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.5");
   assert.match(readme, /Vollständig deinstallieren/);
 });
 

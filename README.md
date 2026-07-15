@@ -134,6 +134,8 @@ systemctl status tixaro-update.timer
 journalctl -u tixaro-update.service
 ```
 
+Bei einem GitHub-API-Limit oder einem privaten Repository kann in `.env` optional `TIXARO_GITHUB_TOKEN` gesetzt werden. Der Host-Helfer liest den Token über eine geschützte temporäre Curl-Konfiguration ein, damit er nicht in der Prozessliste erscheint. Fehlgeschlagene Anforderungen werden einmalig verarbeitet; die konkrete Ursache steht anschließend im Admin-Center und im Systemprotokoll.
+
 ## Vollständig deinstallieren
 
 > **Achtung:** Die folgenden Schritte löschen alle Tixaro-Tickets, Kunden, Benutzer, Einstellungen, Anhänge und internen Schlüssel unwiderruflich. Erstelle vorher ein Backup, falls Daten erhalten bleiben sollen.
