@@ -21,6 +21,9 @@ import { settingsRouter } from "./routes/settings.js";
 import { statisticsRouter } from "./routes/statistics.js";
 import { portalRouter } from "./routes/portal.js";
 import { appearanceCss, loadAppearance, loadBrandLogo, loadBrandName } from "./appearance.js";
+import { setupRouter } from "./routes/setup.js";
+import { createSetupState } from "./initial-setup.js";
+import { loadSystemConfiguration } from "./system-configuration.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +46,7 @@ export function createApp({ pool, config }) {
   const app = express();
   const PgSession = connectPgSimple(session);
   const mapTileSource = mapTileCspSource(config.mapTileUrl);
+  const setupState = createSetupState(pool);
 
   app.set("trust proxy", config.trustProxy);
   app.engine("ejs", ejsMate);
@@ -96,7 +100,17 @@ export function createApp({ pool, config }) {
     res.locals.currentPath = req.path;
     Object.assign(res.locals, helpers);
     try {
-      res.locals.companyName = await loadBrandName(pool, config.companyName);
+      const [companyName, systemConfiguration] = await Promise.all([
+        loadBrandName(pool, config.companyName),
+        loadSystemConfiguration(pool, config)
+      ]);
+      res.locals.companyName = companyName;
+      res.locals.appBaseUrl = systemConfiguration.appBaseUrl;
+      res.locals.timeZone = systemConfiguration.timeZone;
+      res.locals.formatDate = (value) => helpers.formatDate(value, systemConfiguration.timeZone);
+      res.locals.formatDateTime = (value) => helpers.formatDateTime(value, systemConfiguration.timeZone);
+      res.locals.formatDateTimeInput = (value) => helpers.formatDateTimeInput(value, systemConfiguration.timeZone);
+      res.locals.deadlineText = (value, state) => helpers.deadlineText(value, state, systemConfiguration.timeZone);
       next();
     } catch (error) {
       next(error);
@@ -125,6 +139,8 @@ export function createApp({ pool, config }) {
     await pool.query("SELECT 1");
     res.json({ status: "ok" });
   });
+  app.use(setupState.guard);
+  app.use("/setup", setupRouter({ pool, config, setupState }));
   app.use(authRouter({ pool, config }));
   app.use(dashboardRouter({ pool }));
   app.use("/portal", portalRouter({ pool }));

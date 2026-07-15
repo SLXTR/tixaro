@@ -424,6 +424,22 @@ label small { color: var(--muted); font-weight: 450; }
 .login-copy h1 { font-size: 33px; }
 .login-copy > p:last-child { color: var(--muted); }
 .login-card .form-error { margin-bottom: 14px; }
+.setup-card { width: min(900px, calc(100% - 48px)); overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-md); }
+.setup-header { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 28px; align-items: end; padding: 30px 34px 27px; border-bottom: 1px solid var(--line); background: #fbfcfe; }
+.setup-brand { align-self: start; margin: 0; }
+.setup-header h1 { margin: 4px 0 7px; font-size: 27px; }
+.setup-header p:last-child { max-width: 590px; margin: 0; color: var(--muted); font-size: 11px; }
+.setup-errors { margin: 20px 28px 0; padding: 13px 15px; border: 1px solid #fecaca; border-radius: 7px; color: #991b1b; background: #fff7f7; font-size: 10px; }
+.setup-errors ul { margin: 7px 0 0; padding-left: 18px; }
+.setup-form { display: grid; }
+.setup-section { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 5px 28px; margin: 0; padding: 26px 34px; border: 0; border-bottom: 1px solid var(--line); }
+.setup-section legend { float: left; grid-column: 1; padding: 0; color: var(--ink-strong); font-size: 13px; font-weight: 800; }
+.setup-section > p { grid-column: 1; margin: 27px 0 0; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.setup-section > .form-grid { grid-column: 2; grid-row: 1 / span 2; }
+.setup-service-grid { grid-template-columns: 1.4fr 1fr 1fr; }
+.setup-actions { display: flex; align-items: center; justify-content: space-between; gap: 22px; padding: 20px 34px; background: #fbfcfe; }
+.setup-actions span { color: var(--muted); font-size: 9px; }
+.setup-actions .button { min-width: 190px; }
 .login-note { margin: 18px 0 0; color: var(--muted-2); font-size: 10px; text-align: center; }
 .login-visual { position: relative; display: grid; margin: 0; overflow: hidden; place-items: center; border-radius: 0; color: #fff; background: #252721; }
 .login-visual::before { position: absolute; inset: 28px; content: ""; border: 1px solid #41443b; }
@@ -1040,6 +1056,14 @@ label small { color: var(--muted); font-weight: 450; }
 }
 
 @media (max-width: 650px) {
+  .setup-card { width: min(100% - 24px, 560px); }
+  .setup-header, .setup-section { grid-template-columns: 1fr; padding: 24px 20px; }
+  .setup-brand { margin-bottom: 10px; }
+  .setup-section > p, .setup-section > .form-grid { grid-column: 1; grid-row: auto; }
+  .setup-section > p { margin: 3px 0 13px; }
+  .setup-service-grid { grid-template-columns: 1fr; }
+  .setup-actions { align-items: stretch; flex-direction: column; padding: 18px 20px; }
+  .setup-actions .button { width: 100%; }
   .brand-name-form { grid-template-columns: 1fr; }
   .portal-asset-card dl { grid-template-columns: 1fr; gap: 7px; }
   .admin-commandbar { align-items: stretch; padding: 8px; }

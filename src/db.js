@@ -422,6 +422,7 @@ export async function createDatabase(config) {
 }
 
 export async function seedAdmin(pool, config) {
+  if (!config.adminPassword || config.adminPassword.length < 10) throw new Error("Für das automatische Administratorkonto wird ein sicheres Passwort benötigt.");
   const existing = await pool.query("SELECT id FROM users WHERE email = $1", [config.adminEmail]);
   if (existing.rowCount > 0) {
     await assignSystemRoleForLegacyRole(pool, existing.rows[0].id, "admin");

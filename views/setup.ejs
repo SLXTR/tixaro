@@ -1,0 +1,55 @@
+<% layout('layout') -%>
+<section class="setup-card">
+  <header class="setup-header">
+    <div class="login-brand setup-brand">
+      <img class="brand-mark brand-mark-large" src="/brand-logo" alt="">
+      <div><strong>Tixaro</strong><span>Ersteinrichtung</span></div>
+    </div>
+    <div><p class="eyebrow">Einmalige Einrichtung</p><h1>Service Desk startklar machen</h1><p>Die wichtigsten Angaben werden jetzt sicher gespeichert. Alles Weitere lässt sich später im Admin-Center ändern.</p></div>
+  </header>
+
+  <% if (errors.length) { %>
+    <div class="setup-errors" role="alert"><strong>Bitte prüfe die Angaben:</strong><ul><% errors.forEach(error => { %><li><%= error %></li><% }) %></ul></div>
+  <% } %>
+
+  <form class="setup-form" action="/setup" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <fieldset class="setup-section">
+      <legend>Unternehmen & Adresse</legend>
+      <p>Name, öffentliche URL und lokale Zeitdarstellung des Systems.</p>
+      <div class="form-grid">
+        <label>Firmenname<input name="company_name" value="<%= values.company_name || '' %>" minlength="2" maxlength="80" required autofocus></label>
+        <label>Zeitzone<select name="time_zone" required><% timeZones.forEach(([value, label]) => { %><option value="<%= value %>" <%= values.time_zone === value ? 'selected' : '' %>><%= label %></option><% }) %></select></label>
+        <label class="field-full">Öffentliche URL<input type="url" name="app_base_url" value="<%= values.app_base_url || '' %>" placeholder="https://tickets.example.com" required><small>Wird für Links in E-Mails verwendet. Nur die Adresse ohne Unterpfad eintragen.</small></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="setup-section">
+      <legend>Ticketbetrieb</legend>
+      <p>Die zentrale Eingangsqueue und das Standard-SLA für neue Anfragen.</p>
+      <div class="form-grid setup-service-grid">
+        <label>Zentrale Queue<input name="queue_name" value="<%= values.queue_name || '' %>" minlength="2" maxlength="80" required></label>
+        <label>Erstreaktion in Stunden<input type="number" name="response_hours" value="<%= values.response_hours || '8' %>" min="1" max="720" required></label>
+        <label>Lösung in Stunden<input type="number" name="resolution_hours" value="<%= values.resolution_hours || '48' %>" min="1" max="8760" required></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="setup-section">
+      <legend>Administratorkonto</legend>
+      <p>Dieses Konto erhält Zugriff auf alle Bereiche und die weitere Konfiguration.</p>
+      <div class="form-grid">
+        <label>Vorname<input name="first_name" value="<%= values.first_name || '' %>" minlength="2" maxlength="80" autocomplete="given-name" required></label>
+        <label>Nachname<input name="last_name" value="<%= values.last_name || '' %>" minlength="2" maxlength="80" autocomplete="family-name" required></label>
+        <label class="field-full">E-Mail-Adresse<input type="email" name="email" value="<%= values.email || '' %>" autocomplete="username" required></label>
+        <label>Passwort<input type="password" name="password" minlength="12" autocomplete="new-password" required><small>Mindestens 12 Zeichen.</small></label>
+        <label>Passwort wiederholen<input type="password" name="password_confirmation" minlength="12" autocomplete="new-password" required></label>
+      </div>
+    </fieldset>
+
+    <footer class="setup-actions">
+      <span>Der Assistent wird nach dem Abschluss dauerhaft gesperrt.</span>
+      <button class="button button-primary" type="submit">Einrichtung abschließen</button>
+    </footer>
+  </form>
+</section>

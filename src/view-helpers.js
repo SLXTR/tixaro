@@ -61,10 +61,10 @@ export function slaState(ticket, type = "resolution") {
   return "ok";
 }
 
-export function deadlineText(value, state) {
+export function deadlineText(value, state, timeZone) {
   if (!value) return "Nicht festgelegt";
-  if (state === "done") return `Erledigt · ${formatDateTime(value)}`;
-  if (state === "paused") return `Pausiert · Ziel ${formatDateTime(value)}`;
+  if (state === "done") return `Erledigt · ${formatDateTime(value, timeZone)}`;
+  if (state === "paused") return `Pausiert · Ziel ${formatDateTime(value, timeZone)}`;
   const minutes = Math.round((new Date(value).getTime() - Date.now()) / 60000);
   if (minutes < 0) return `${Math.abs(minutes)} Min. überschritten`;
   if (minutes < 60) return `noch ${minutes} Min.`;
@@ -86,19 +86,25 @@ export function formatTicks(value) {
   return `${ticks} ${ticks === 1 ? "Takt" : "Takte"}`;
 }
 
-export function formatDate(value) {
+export function formatDate(value, timeZone) {
   if (!value) return "–";
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value));
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", ...(timeZone ? { timeZone } : {}) }).format(new Date(value));
 }
 
-export function formatDateTime(value) {
+export function formatDateTime(value, timeZone) {
   if (!value) return "–";
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", ...(timeZone ? { timeZone } : {}) }).format(new Date(value));
 }
 
-export function formatDateTimeInput(value) {
+export function formatDateTimeInput(value, timeZone) {
   if (!value) return "";
   const date = new Date(value);
+  if (timeZone) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+      timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(date).filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+  }
   const pad = (part) => String(part).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }

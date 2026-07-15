@@ -12,8 +12,9 @@ import { pollMailChannel, testMailChannel } from "../mail-service.js";
 import { loadNumberFormats, numberFormatOptions, saveNumberFormats } from "../number-formats.js";
 import { templateVariables } from "../template-engine.js";
 import { checkForUpdate, installUpdate, updateOverview } from "../system-update.js";
+import { loadSystemConfiguration, saveSystemConfiguration, setupTimeZones, validAppBaseUrl, validTimeZone } from "../system-configuration.js";
 
-const sections = ["overview", "queues", "ticket-types", "sla", "numbers", "templates", "asset-types", "mail", "roles", "groups", "appearance", "updates"];
+const sections = ["overview", "queues", "ticket-types", "sla", "numbers", "templates", "asset-types", "mail", "roles", "groups", "appearance", "system", "updates"];
 const templateTypes = Object.freeze({ reply: "Antwort", signature: "Signatur", auto_reply: "Automatische Antwort" });
 
 const sectionMeta = {
@@ -28,12 +29,13 @@ const sectionMeta = {
   roles: { group: "Rechte & System", title: "Rollen & Rechte", description: "Berechtigungsprofile erstellen und Benutzern direkt zuweisen.", action: "Rolle anlegen" },
   groups: { group: "Rechte & System", title: "Gruppen", description: "Teams, Gruppenrollen und Queue-Zugriffe zentral steuern.", action: "Gruppe anlegen" },
   appearance: { group: "Rechte & System", title: "Erscheinungsbild", description: "Firmenname, Logo und Farben an die eigene Marke anpassen." },
+  system: { group: "Rechte & System", title: "System", description: "Öffentliche URL und lokale Zeitzone verwalten." },
   updates: { group: "Rechte & System", title: "Systemupdate", description: "Tixaro sicher aus dem verbundenen GitHub-Repository aktualisieren." }
 };
 
 const sectionPermissions = {
   queues: "settings.manage", "ticket-types": "settings.manage", sla: "settings.manage", numbers: "settings.manage", templates: "settings.manage", "asset-types": "settings.manage",
-  mail: "settings.manage", roles: "roles.manage", groups: "groups.manage", appearance: "appearance.manage", updates: "settings.manage"
+  mail: "settings.manage", roles: "roles.manage", groups: "groups.manage", appearance: "appearance.manage", system: "settings.manage", updates: "settings.manage"
 };
 
 function positiveInt(value) {
@@ -192,7 +194,7 @@ export function settingsRouter({ pool, config }) {
     const adminPermissions = ["settings.manage", "roles.manage", "groups.manage", "appearance.manage"];
     if ((requestedPermission && !hasPermission(req.user, requestedPermission)) || (section === "overview" && !adminPermissions.some((permission) => hasPermission(req.user, permission)))) return denied(res);
     const query = String(req.query.q ?? "").trim().slice(0, 80);
-    const [ticketConfig, queues, ticketTypes, slaPolicies, assetTypes, rolesResult, permissionsResult, groupsResult, userRecords, rolePermissions, roleUsers, groupMembers, groupRoles, groupQueues, appearance, brandLogo, mailChannelsResult, mailEventsResult, numberFormats, responseTemplates, updateState] = await Promise.all([
+    const [ticketConfig, queues, ticketTypes, slaPolicies, assetTypes, rolesResult, permissionsResult, groupsResult, userRecords, rolePermissions, roleUsers, groupMembers, groupRoles, groupQueues, appearance, brandLogo, mailChannelsResult, mailEventsResult, numberFormats, responseTemplates, systemConfiguration, updateState] = await Promise.all([
       loadTicketConfiguration(pool, { includeInactive: true }),
       pool.query(
         `SELECT q.*, parent.name AS parent_name, COALESCE(t.ticket_count, 0)::int AS ticket_count,
@@ -254,6 +256,7 @@ export function settingsRouter({ pool, config }) {
       ),
       loadNumberFormats(pool),
       pool.query("SELECT * FROM response_templates ORDER BY active DESC, sort_order, name"),
+      loadSystemConfiguration(pool, config),
       section === "updates" ? updateOverview(config) : Promise.resolve(null)
     ]);
 
@@ -283,6 +286,7 @@ export function settingsRouter({ pool, config }) {
       { group: "Rechte & System", title: "Rollen & Rechte", description: "Zugriffe und Berechtigungen", href: "/settings?section=roles", permission: "roles.manage" },
       { group: "Rechte & System", title: "Gruppen", description: "Teams und Queue-Zugriffe", href: "/settings?section=groups", permission: "groups.manage" },
       { group: "Rechte & System", title: "Erscheinungsbild", description: "Logo und Farben", href: "/settings?section=appearance", permission: "appearance.manage" },
+      { group: "Rechte & System", title: "System", description: "Öffentliche URL und Zeitzone", href: "/settings?section=system", permission: "settings.manage" },
       { group: "Rechte & System", title: "Systemupdate", description: "Updates direkt aus GitHub", href: "/settings?section=updates", permission: "settings.manage" }
     ].filter((module) => (!module.permission || hasPermission(req.user, module.permission)) && (!query || `${module.title} ${module.description} ${module.group}`.toLowerCase().includes(query.toLowerCase())));
 
@@ -306,6 +310,8 @@ export function settingsRouter({ pool, config }) {
       responseTemplates: responseTemplates.rows,
       templateTypes,
       templateVariables,
+      systemConfiguration,
+      setupTimeZones,
       updateState,
       mailChannels: mailChannelsResult.rows.map(({ inbound_secret, outbound_secret, graph_client_secret, ...channel }) => ({
         ...channel,
@@ -328,6 +334,18 @@ export function settingsRouter({ pool, config }) {
       brandLogoVersion: brandLogo?.updatedAt ? new Date(brandLogo.updatedAt).getTime() : 0,
       defaultAppearance
     });
+  });
+
+  router.post("/system", async (req, res) => {
+    const appBaseUrl = String(req.body.app_base_url ?? "").trim();
+    const timeZone = String(req.body.time_zone ?? "").trim();
+    if (!validAppBaseUrl(appBaseUrl) || !validTimeZone(timeZone)) {
+      setFlash(req, "error", "Öffentliche URL oder Zeitzone ist ungültig.");
+      return redirectTo(res, "system");
+    }
+    await saveSystemConfiguration(pool, { appBaseUrl, timeZone });
+    setFlash(req, "success", "Systemadresse und Zeitzone wurden gespeichert.");
+    redirectTo(res, "system");
   });
 
   router.post("/numbers", async (req, res) => {

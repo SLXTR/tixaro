@@ -3,9 +3,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tixaro}
-      POSTGRES_USER: ${POSTGRES_USER:-tixaro}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in der .env-Datei}
+      POSTGRES_DB: tixaro
+      POSTGRES_USER: tixaro
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt - starte sh install.sh}"
     volumes:
       - tixaro_postgres:/var/lib/postgresql/data
     healthcheck:
@@ -26,14 +26,11 @@ services:
       NODE_ENV: production
       PORT: 3000
       TRUST_PROXY: ${TRUST_PROXY:-1}
-      COMPANY_NAME: ${COMPANY_NAME:-Tixaro}
-      DATABASE_URL: ${DATABASE_URL}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET fehlt in der .env-Datei}
-      ADMIN_NAME: ${ADMIN_NAME:-Administrator}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL fehlt in der .env-Datei}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD fehlt in der .env-Datei}
+      DATABASE_URL: "postgresql://tixaro:${POSTGRES_PASSWORD}@db:5432/tixaro"
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - tixaro_data:/app/data
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 15s
@@ -45,6 +42,7 @@ services:
 
 volumes:
   tixaro_postgres:
+  tixaro_data:
 
 networks:
   tixaro_internal:

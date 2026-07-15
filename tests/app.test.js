@@ -9,6 +9,7 @@ import { assignSystemRoleForLegacyRole } from "../src/access-control.js";
 import { searchAddresses } from "../src/address-search.js";
 import { ingestInboundMessage, sendTicketEmail } from "../src/mail-service.js";
 import { compareVersions, fetchLatestRelease } from "../src/system-update.js";
+import { loadSystemConfiguration } from "../src/system-configuration.js";
 
 let pool;
 let app;
@@ -63,6 +64,62 @@ test("Updateprüfung wertet veröffentlichte GitHub-Releases aus", async () => {
   });
   assert.equal(release.version, "1.2.0");
   assert.equal(release.tagName, "v1.2.0");
+});
+
+test("Ersteinrichtung setzt alle zentralen Werte und sperrt sich danach", async () => {
+  const setupConfig = loadConfig({
+    nodeEnv: "test",
+    databaseUrl: "memory://initial-setup",
+    sessionSecret: "setup-session-secret-with-at-least-32-characters",
+    adminPassword: "",
+    companyName: "Tixaro",
+    appBaseUrl: "http://localhost:3000"
+  });
+  const setupPool = await createDatabase(setupConfig);
+  const setupApp = createApp({ pool: setupPool, config: setupConfig });
+  const setupAgent = request.agent(setupApp);
+
+  await setupAgent.get("/login").expect(302).expect("Location", "/setup");
+  let page = await setupAgent.get("/setup").expect(200);
+  assert.match(page.text, /Service Desk startklar machen/);
+  assert.match(page.text, /Zentrale Queue/);
+  assert.match(page.text, /Administratorkonto/);
+
+  await setupAgent.post("/setup").type("form").send({
+    _csrf: csrfFrom(page.text),
+    company_name: "Muster Service GmbH",
+    app_base_url: "https://support.muster.test",
+    time_zone: "Europe/Berlin",
+    queue_name: "Service Desk",
+    response_hours: "4",
+    resolution_hours: "24",
+    first_name: "Mara",
+    last_name: "Admin",
+    email: "mara@muster.test",
+    password: "InitialSetup123!",
+    password_confirmation: "InitialSetup123!"
+  }).expect(302).expect("Location", "/");
+
+  page = await setupAgent.get("/").expect(200);
+  assert.match(page.text, /Muster Service GmbH/);
+  assert.match(page.text, /Ersteinrichtung ist abgeschlossen/);
+  const admin = await setupPool.query("SELECT first_name, last_name, email, role FROM users");
+  assert.deepEqual(admin.rows[0], { first_name: "Mara", last_name: "Admin", email: "mara@muster.test", role: "admin" });
+  const queue = await setupPool.query("SELECT name FROM ticket_queues WHERE description = 'Zentrale Eingangsqueue'");
+  assert.equal(queue.rows[0].name, "Service Desk");
+  const sla = await setupPool.query("SELECT response_minutes, resolution_minutes FROM sla_policies WHERE code = 'standard'");
+  assert.deepEqual(sla.rows[0], { response_minutes: 240, resolution_minutes: 1440 });
+  const stored = await loadSystemConfiguration(setupPool, setupConfig);
+  assert.deepEqual(stored, { appBaseUrl: "https://support.muster.test", timeZone: "Europe/Berlin" });
+  page = await setupAgent.get("/settings?section=system").expect(200);
+  assert.match(page.text, /https:\/\/support\.muster\.test/);
+  await setupAgent.post("/settings/system").type("form").send({
+    _csrf: csrfFrom(page.text), app_base_url: "https://hilfe.muster.test", time_zone: "Europe/Zurich"
+  }).expect(302).expect("Location", "/settings?section=system");
+  assert.deepEqual(await loadSystemConfiguration(setupPool, setupConfig), { appBaseUrl: "https://hilfe.muster.test", timeZone: "Europe/Zurich" });
+  await setupAgent.get("/setup").expect(302).expect("Location", "/");
+  await request(setupApp).get("/setup").expect(302).expect("Location", "/login");
+  await setupPool.end();
 });
 
 test("Adresssuche normalisiert Photon-Ergebnisse für die Kundeneingabe", async () => {

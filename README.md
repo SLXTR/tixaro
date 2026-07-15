@@ -36,6 +36,7 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 - Persistente Farbanpassung über sieben Farbwähler für Akzent, Flächen, Sekundärfarbe und Navigation
 - Frei anpassbarer Firmenname und eigenes Logo im ursprünglichen Seitenverhältnis; Tixaro bleibt als Standard erhalten
 - Aufgeräumtes Admin-Center mit vier klar gegliederten Bereichen und schneller Einstellungssuche
+- Einmaliger Einrichtungsassistent für Firma, URL, Zeitzone, Queue, SLA und Administratorkonto
 - Persistente PostgreSQL-Datenbank, Healthchecks und automatischer Neustart
 - GitHub Actions für automatische Tests
 
@@ -62,38 +63,23 @@ git clone https://github.com/SLXTR/tixaro.git /opt/tixaro
 cd /opt/tixaro
 ```
 
-Da das Repository privat ist, verlangt GitHub beim ersten Klonen eine Anmeldung. Für Server ist ein GitHub-SSH-Schlüssel die bequemste Variante.
+Das Repository ist öffentlich und kann ohne vorherige GitHub-Anmeldung geklont werden.
 
-### 3. Konfiguration anlegen
-
-```bash
-cp .env.example .env
-openssl rand -hex 32
-nano .env
-```
-
-Trage getrennte, erzeugte Zufallswerte als `SESSION_SECRET` und `MAIL_SECRET_KEY` ein. Ändere außerdem zwingend:
-
-- `COMPANY_NAME`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD` (mindestens 12 Zeichen)
-- `POSTGRES_PASSWORD`
-- das Passwort innerhalb von `DATABASE_URL`
-- `APP_BASE_URL` auf die öffentliche HTTPS-Adresse des Systems
-
-Optional kann `ADDRESS_SEARCH_URL` auf eine eigene Photon-Instanz und `MAP_TILE_URL` auf einen eigenen Kartenanbieter zeigen. Ohne Änderung werden Photon und OpenStreetMap verwendet; bei einem Ausfall bleiben Adressen weiterhin manuell speicherbar.
-
-Wichtig: `POSTGRES_PASSWORD` und das Passwort in `DATABASE_URL` müssen identisch sein.
-
-### 4. Tixaro starten
+### 3. Starten
 
 ```bash
-docker compose up -d --build
-docker compose ps
-curl http://127.0.0.1:3000/health
+sh install.sh
 ```
 
-Bei Erfolg antwortet der Healthcheck mit `{"status":"ok"}`. Das Administratorkonto wird beim ersten Start aus der `.env`-Datei erzeugt.
+Das Skript erzeugt die internen Datenbank-Zugangsdaten, baut die Container und startet Tixaro. Sitzungs- und Mail-Schlüssel werden beim ersten Containerstart automatisch erzeugt und dauerhaft im Volume `tixaro_data` gespeichert.
+
+Öffne anschließend:
+
+```bash
+http://127.0.0.1:3000/setup
+```
+
+Der Assistent fragt Firmenname, öffentliche URL, Zeitzone, zentrale Queue, Standard-SLA und das erste Administratorkonto ab. Danach wird er dauerhaft gesperrt. Optionale Werte wie Port, Kartenanbieter oder Update-Token können weiterhin in `.env` ergänzt werden; die Vorlage `.env.example` enthält alle Möglichkeiten.
 
 ## Domain und HTTPS einrichten
 

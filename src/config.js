@@ -15,12 +15,11 @@ export function loadConfig(overrides = {}) {
   const mailSecretKey = overrides.mailSecretKey ?? process.env.MAIL_SECRET_KEY ?? sessionSecret;
 
   requireProductionValue("SESSION_SECRET", sessionSecret);
-  requireProductionValue("ADMIN_PASSWORD", adminPassword);
 
   if (isProduction && sessionSecret.length < 32) {
     throw new Error("SESSION_SECRET muss mindestens 32 Zeichen lang sein.");
   }
-  if (isProduction && adminPassword.length < 12) {
+  if (isProduction && adminPassword && adminPassword.length < 12) {
     throw new Error("ADMIN_PASSWORD muss mindestens 12 Zeichen lang sein.");
   }
   if (isProduction && mailSecretKey.length < 32) {
@@ -35,6 +34,7 @@ export function loadConfig(overrides = {}) {
     addressSearchUrl: overrides.addressSearchUrl ?? process.env.ADDRESS_SEARCH_URL ?? "https://photon.komoot.io/api/",
     mapTileUrl: overrides.mapTileUrl ?? process.env.MAP_TILE_URL ?? "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     appBaseUrl: overrides.appBaseUrl ?? process.env.APP_BASE_URL ?? `http://localhost:${Number(overrides.port ?? process.env.PORT ?? 3000)}`,
+    timeZone: overrides.timeZone ?? process.env.TIME_ZONE ?? "Europe/Berlin",
     mailSecretKey,
     databaseUrl: overrides.databaseUrl ?? process.env.DATABASE_URL ?? "memory://tixaro",
     databaseSsl: overrides.databaseSsl ?? process.env.DATABASE_SSL === "true",

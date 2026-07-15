@@ -5,7 +5,7 @@ import { startMailPolling } from "./mail-service.js";
 
 const config = loadConfig();
 const pool = await createDatabase(config);
-await seedAdmin(pool, config);
+if (config.adminPassword) await seedAdmin(pool, config);
 
 const app = createApp({ pool, config });
 const server = app.listen(config.port, "0.0.0.0", () => {

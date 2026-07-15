@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
+import { loadSystemConfiguration } from "./system-configuration.js";
 import Pop3Command from "node-pop3";
 import { assignSystemRoleForLegacyRole } from "./access-control.js";
 import { autoAssignCustomerUser } from "./customer-assignment.js";
@@ -343,7 +344,8 @@ export async function sendTicketEmail({ pool, config, ticketId, body, fetchImpl 
   const channel = await outboundChannel(pool, config, ticket);
   if (!channel || !ticket.requester_email) return { skipped: true, reason: "channel_missing" };
   const subject = `[${ticket.ticket_number}] ${ticket.subject}`;
-  const text = `${plainText(body)}\n\nTicket: ${config.appBaseUrl}/tickets/${ticket.id}`;
+  const systemConfiguration = await loadSystemConfiguration(pool, config);
+  const text = `${plainText(body)}\n\nTicket: ${systemConfiguration.appBaseUrl}/tickets/${ticket.id}`;
   const eventId = randomUUID();
   try {
     let externalId = eventId;
