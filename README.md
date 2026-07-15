@@ -120,6 +120,8 @@ Unter **Einstellungen → Systemupdate** kann ein Administrator nach einem verö
 
 Installationen bis einschließlich Version 1.0.5 aktualisieren den Systemdienst einmalig manuell. Führe dazu als ursprünglicher Installationsbenutzer im Tixaro-Verzeichnis `git pull --ff-only` und anschließend `sh install.sh` aus. Ab Version 1.0.6 wird der Helfer direkt aus der Installation gestartet und bei künftigen Releases automatisch mitaktualisiert.
 
+Installationen bis einschließlich Version 1.0.9 benötigen für den Wechsel auf eine neuere Version ebenfalls einmalig `git pull --ff-only` und `sh install.sh`. Ab Version 1.0.10 verarbeitet der Host-Helfer auch kompakte, einzeilige JSON-Antworten der GitHub-API zuverlässig.
+
 Der Button führt bewusst kein `sudo` im Container aus und klont keinen Quellcode in den laufenden Container. Der einmalig installierte Dienst läuft als normaler Installationsbenutzer und besitzt nur den festen Tixaro-Ablauf. Falls der Dienst nicht aktiviert wurde, kann weiterhin manuell aktualisiert werden:
 
 ```bash

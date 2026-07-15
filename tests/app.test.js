@@ -90,16 +90,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.10",
-          name: "Tixaro 1.0.10",
+          tag_name: "v1.0.11",
+          name: "Tixaro 1.0.11",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.10",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.11",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.10");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.11");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -144,6 +144,8 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(updateHelper, /TIXARO_GITHUB_TOKEN/);
   assert.match(updateHelper, /User-Agent: Tixaro-Host-Updater/);
   assert.match(updateHelper, /Das GitHub-API-Limit ist erreicht/);
+  assert.match(updateHelper, /JSON\.parse\(fs\.readFileSync\(0, "utf8"\)\)/);
+  assert.doesNotMatch(updateHelper, /sed -n 's\/\^\[\[:space:\]\]\*"tag_name"/);
   assert.match(updateHelper, /status\.message = process\.argv\[3\]/);
   assert.ok(updateHelper.indexOf('unlinkSync("/app/data/update-request.json")') < updateHelper.indexOf("api_status="));
   assert.match(updateService, /ExecStart=\/bin\/sh __INSTALL_DIR__\/deploy\/update-host\.sh __INSTALL_DIR__/);
@@ -152,7 +154,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.9");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.10");
   assert.match(readme, /Vollständig deinstallieren/);
   assert.match(stylesheet, /--font-xs: 15px/);
   assert.match(stylesheet, /body \{[^}]*font: 18px\/1\.55/);

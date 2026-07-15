@@ -126,8 +126,15 @@ case "$api_status" in
   *) fail_update "Die GitHub-Release-Abfrage ist mit HTTP ${api_status} fehlgeschlagen." ;;
 esac
 
-published_tag="$(sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' "$api_body_file" | head -n 1)"
-[ -n "$published_tag" ] || fail_update "Die GitHub-Antwort enthält keinen gültigen Release-Tag."
+published_tag="$(docker compose exec -T app node -e '
+  const fs = require("node:fs");
+  const release = JSON.parse(fs.readFileSync(0, "utf8"));
+  process.stdout.write(String(release.tag_name || ""));
+' < "$api_body_file" 2>/dev/null)" || fail_update "Die GitHub-Antwort enthält kein gültiges JSON."
+published_tag="$(printf '%s' "$published_tag" | tr -d '\r\n')"
+if ! printf '%s' "$published_tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+  fail_update "Die GitHub-Antwort enthält keinen gültigen Release-Tag."
+fi
 [ "$published_tag" = "$request_tag" ] || fail_update "Die angeforderte Version ist nicht das aktuell veröffentlichte GitHub-Release."
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
