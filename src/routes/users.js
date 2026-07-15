@@ -3,10 +3,25 @@ import bcrypt from "bcryptjs";
 import { requireAuth, requirePermission } from "../middleware.js";
 import { setFlash } from "../security.js";
 import { assignCustomerUser, autoAssignCustomerUser } from "../customer-assignment.js";
-import { assignSystemRoleForLegacyRole } from "../access-control.js";
+import { assignSystemRoleForLegacyRole, hasPermission } from "../access-control.js";
 import { userName, userNamesFromBody, validUserNames } from "../user-names.js";
 
 const roles = ["admin", "agent", "requester"];
+
+function canGrantAdmin(user) {
+  return hasPermission(user, "users.grant_admin");
+}
+
+function allowedRoles(user) {
+  return canGrantAdmin(user) ? roles : roles.filter((role) => role !== "admin");
+}
+
+function deniedAdminManagement(res) {
+  return res.status(403).render("error", {
+    title: "Kein Zugriff",
+    message: "Für Administratorkonten ist die Berechtigung „Administratoren ernennen“ erforderlich."
+  });
+}
 
 function positiveInt(value) {
   const parsed = Number.parseInt(value, 10);
@@ -37,7 +52,7 @@ export function usersRouter({ pool }) {
 
   router.post("/preview/stop", requireAuth, async (req, res) => {
     if (!req.session.originalUserId) return res.redirect(req.user.role === "requester" ? "/portal" : "/users");
-    const original = await pool.query("SELECT id FROM users WHERE id = $1 AND active = TRUE AND role = 'admin'", [req.session.originalUserId]);
+    const original = await pool.query("SELECT id, session_version FROM users WHERE id = $1 AND active = TRUE AND role = 'admin'", [req.session.originalUserId]);
     if (!original.rowCount) {
       delete req.session.originalUserId;
       req.session.userId = null;
@@ -45,24 +60,28 @@ export function usersRouter({ pool }) {
       return res.redirect("/login");
     }
     req.session.userId = original.rows[0].id;
+    req.session.sessionVersion = original.rows[0].session_version;
     delete req.session.originalUserId;
+    delete req.session.originalSessionVersion;
     setFlash(req, "success", "Du bist wieder in deiner Admin-Ansicht.");
     res.redirect("/users");
   });
 
   router.use(requirePermission("users.manage"));
 
-  router.get("/", async (_req, res) => {
+  router.get("/", async (req, res) => {
     const [result, customers] = await Promise.all([userList(pool), customerOptions(pool)]);
-    res.render("users/index", { title: "Benutzer", users: result.rows, customers: customers.rows, error: null, values: {} });
+    res.render("users/index", { title: "Benutzer", users: result.rows, customers: customers.rows, roleOptions: allowedRoles(req.user), error: null, values: {} });
   });
 
   router.post("/", async (req, res) => {
     const { firstName, lastName, name } = userNamesFromBody(req.body);
     const email = String(req.body.email ?? "").trim().toLowerCase();
     const password = String(req.body.password ?? "");
-    const role = roles.includes(req.body.role) ? req.body.role : "requester";
-    const customerId = role === "requester" ? positiveInt(req.body.customer_id) : null;
+    if (req.body.role === "admin" && !canGrantAdmin(req.user)) return deniedAdminManagement(res);
+    const roleOptions = allowedRoles(req.user);
+    const role = roleOptions.includes(req.body.role) ? req.body.role : "requester";
+    const customerId = positiveInt(req.body.customer_id);
     const [result, customers] = await Promise.all([userList(pool), customerOptions(pool)]);
     const selectedCustomer = customerId ? customers.rows.find((customer) => customer.id === customerId) : null;
     if (!validUserNames(firstName, lastName) || !email.includes("@") || password.length < 10 || (customerId && !selectedCustomer)) {
@@ -70,6 +89,7 @@ export function usersRouter({ pool }) {
         title: "Benutzer",
         users: result.rows,
         customers: customers.rows,
+        roleOptions,
         error: customerId && !selectedCustomer ? "Der ausgewählte Kunde existiert nicht oder ist inaktiv."
           : "Vorname, Nachname und E-Mail-Adresse sind erforderlich; das Passwort muss mindestens 10 Zeichen haben.",
         values: req.body
@@ -77,7 +97,7 @@ export function usersRouter({ pool }) {
     }
     const duplicate = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
     if (duplicate.rowCount) {
-      return res.status(409).render("users/index", { title: "Benutzer", users: result.rows, customers: customers.rows, error: "Diese E-Mail-Adresse wird bereits verwendet.", values: req.body });
+      return res.status(409).render("users/index", { title: "Benutzer", users: result.rows, customers: customers.rows, roleOptions, error: "Diese E-Mail-Adresse wird bereits verwendet.", values: req.body });
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const client = await pool.connect();
@@ -89,10 +109,10 @@ export function usersRouter({ pool }) {
         [firstName, lastName, name, email, passwordHash, role]
       );
       await assignSystemRoleForLegacyRole(client, user.rows[0].id, role);
-      if (role === "requester" && selectedCustomer) {
+      if (selectedCustomer) {
         await assignCustomerUser(client, { userId: user.rows[0].id, customerId: selectedCustomer.id });
         assignment = { assigned: true, customer: selectedCustomer };
-      } else if (role === "requester") {
+      } else {
         assignment = await autoAssignCustomerUser(client, { userId: user.rows[0].id, email });
       }
       await client.query("COMMIT");
@@ -119,16 +139,17 @@ export function usersRouter({ pool }) {
       customerOptions(pool)
     ]);
     if (!result.rowCount) return res.status(404).render("error", { title: "Benutzer nicht gefunden", message: "Das Benutzerkonto existiert nicht." });
-    res.render("users/edit", { title: "Benutzer bearbeiten", editedUser: result.rows[0], roles, customers: customers.rows, error: null, values: result.rows[0] });
+    if (result.rows[0].role === "admin" && !canGrantAdmin(req.user)) return deniedAdminManagement(res);
+    res.render("users/edit", { title: "Benutzer bearbeiten", editedUser: result.rows[0], roles: allowedRoles(req.user), customers: customers.rows, error: null, values: result.rows[0] });
   });
 
   router.post("/:id/preview", async (req, res) => {
-    if (req.user.role !== "admin") {
+    if (!canGrantAdmin(req.user)) {
       return res.status(403).render("error", { title: "Kein Zugriff", message: "Nur Administratoren können eine Portalvorschau starten." });
     }
     const id = Number.parseInt(req.params.id, 10);
     const target = await pool.query(
-      "SELECT id, name, email FROM users WHERE id = $1 AND active = TRUE AND role = 'requester'",
+      "SELECT id, name, email, session_version FROM users WHERE id = $1 AND active = TRUE AND role = 'requester'",
       [id]
     );
     if (!target.rowCount) {
@@ -136,7 +157,9 @@ export function usersRouter({ pool }) {
       return res.redirect(`/users/${id}/edit`);
     }
     req.session.originalUserId = req.user.id;
+    req.session.originalSessionVersion = req.session.sessionVersion;
     req.session.userId = target.rows[0].id;
+    req.session.sessionVersion = target.rows[0].session_version;
     await pool.query(
       "INSERT INTO activity_log (actor_id, action, details) VALUES ($1, 'portal_preview_started', $2)",
       [req.user.id, JSON.stringify({ previewedUserId: target.rows[0].id, previewedEmail: target.rows[0].email })]
@@ -154,11 +177,14 @@ export function usersRouter({ pool }) {
     );
     if (!existingResult.rowCount) return res.status(404).render("error", { title: "Benutzer nicht gefunden", message: "Das Benutzerkonto existiert nicht." });
     const existing = existingResult.rows[0];
+    if (existing.role === "admin" && !canGrantAdmin(req.user)) return deniedAdminManagement(res);
     const { firstName, lastName, name } = userNamesFromBody(req.body);
     const email = String(req.body.email ?? "").trim().toLowerCase();
-    const role = id === req.user.id ? existing.role : (roles.includes(req.body.role) ? req.body.role : existing.role);
+    if (req.body.role === "admin" && !canGrantAdmin(req.user)) return deniedAdminManagement(res);
+    const roleOptions = allowedRoles(req.user);
+    const role = id === req.user.id ? existing.role : (roleOptions.includes(req.body.role) ? req.body.role : existing.role);
     const password = String(req.body.password ?? "");
-    const customerId = role === "requester" ? positiveInt(req.body.customer_id) : null;
+    const customerId = positiveInt(req.body.customer_id);
     const customers = await customerOptions(pool);
     const selectedCustomer = customerId ? customers.rows.find((customer) => customer.id === customerId) : null;
     const duplicate = await pool.query("SELECT id FROM users WHERE email = $1 AND id <> $2", [email, id]);
@@ -169,17 +195,18 @@ export function usersRouter({ pool }) {
             : customerId && !selectedCustomer ? "Der ausgewählte Kunde existiert nicht oder ist inaktiv." : null;
     if (error) {
       return res.status(422).render("users/edit", {
-        title: "Benutzer bearbeiten", editedUser: existing, roles, customers: customers.rows, error, values: { ...existing, ...req.body }
+        title: "Benutzer bearbeiten", editedUser: existing, roles: roleOptions, customers: customers.rows, error, values: { ...existing, ...req.body }
       });
     }
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       const passwordHash = password ? await bcrypt.hash(password, 12) : existing.password_hash;
-      await client.query(
+      const sessionMustChange = Boolean(password) || role !== existing.role;
+      const updated = await client.query(
         `UPDATE users SET first_name = $1, last_name = $2, name = $3, email = $4, role = $5,
-         password_hash = $6, updated_at = NOW() WHERE id = $7`,
-        [firstName, lastName, name, email, role, passwordHash, id]
+         password_hash = $6, session_version = session_version + $7, updated_at = NOW() WHERE id = $8 RETURNING session_version`,
+        [firstName, lastName, name, email, role, passwordHash, sessionMustChange ? 1 : 0, id]
       );
       if (role !== existing.role) {
         await client.query(
@@ -188,14 +215,14 @@ export function usersRouter({ pool }) {
         );
         await assignSystemRoleForLegacyRole(client, id, role);
       }
-      if (role === "requester" && selectedCustomer) {
+      if (selectedCustomer) {
         await assignCustomerUser(client, { userId: id, customerId: selectedCustomer.id });
-      } else if (role === "requester" && !existing.customer_id) {
-        await autoAssignCustomerUser(client, { userId: id, email });
-      } else if (role !== "requester") {
+      } else {
         await client.query("DELETE FROM customer_profiles WHERE user_id = $1", [id]);
+        await autoAssignCustomerUser(client, { userId: id, email });
       }
       await client.query("COMMIT");
+      if (id === req.user.id) req.session.sessionVersion = updated.rows[0].session_version;
     } catch (updateError) {
       await client.query("ROLLBACK");
       throw updateError;
@@ -212,7 +239,10 @@ export function usersRouter({ pool }) {
       setFlash(req, "error", "Du kannst dein eigenes Konto nicht deaktivieren.");
       return res.redirect("/users");
     }
-    await pool.query("UPDATE users SET active = NOT active, updated_at = NOW() WHERE id = $1", [id]);
+    const target = await pool.query("SELECT role FROM users WHERE id = $1", [id]);
+    if (!target.rowCount) return res.status(404).render("error", { title: "Benutzer nicht gefunden", message: "Das Benutzerkonto existiert nicht." });
+    if (target.rows[0].role === "admin" && !canGrantAdmin(req.user)) return deniedAdminManagement(res);
+    await pool.query("UPDATE users SET active = NOT active, session_version = session_version + 1, updated_at = NOW() WHERE id = $1", [id]);
     setFlash(req, "success", "Kontostatus wurde geändert.");
     res.redirect("/users");
   });

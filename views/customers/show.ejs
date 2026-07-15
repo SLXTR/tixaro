@@ -9,7 +9,7 @@
 </div>
 
 <section class="crm-metric-grid" aria-label="Kundenübersicht">
-  <div class="mini-metric"><small>Kundenbenutzer</small><strong><%= contacts.length %></strong><span>aktive Ansprechpartner</span></div>
+  <div class="mini-metric"><small>Zugeordnete Benutzer</small><strong><%= contacts.length %></strong><span>aktive Ansprechpartner</span></div>
   <div class="mini-metric"><small>Ressourcen</small><strong><%= assets.length %></strong><span>Geräte und Verträge</span></div>
   <div class="mini-metric"><small>Tickets</small><strong><%= tickets.length %></strong><span>letzte Vorgänge</span></div>
   <div class="mini-metric"><small>Offene Tickets</small><strong><%= tickets.filter(ticket => !['resolved','closed'].includes(ticket.status)).length %></strong><span>aktuell in Bearbeitung</span></div>
@@ -33,20 +33,20 @@
     <% } %>
 
     <section class="panel" id="contacts">
-      <div class="panel-header"><div><h2>Kundenbenutzer</h2></div></div>
+      <div class="panel-header"><div><h2>Benutzer & Ansprechpartner</h2></div></div>
       <% if (contacts.length) { %>
         <div class="contact-list">
           <% contacts.forEach(contact => { %>
             <article class="contact-row">
               <span class="avatar avatar-soft"><%= initials(contact.name) %></span>
-              <div class="contact-identity"><strong><%= contact.name %></strong><span><%= contact.job_title || contact.department || 'Kundenbenutzer' %> · <%= contact.email %></span></div>
+              <div class="contact-identity"><strong><%= contact.name %></strong><span><%= contact.job_title || contact.department || roleLabel(contact.role) %> · <%= contact.email %></span></div>
               <div class="contact-count"><strong><%= contact.asset_count %></strong><span>Ressourcen</span></div>
               <div class="contact-count"><strong><%= contact.ticket_count %></strong><span>Tickets</span></div>
               <span class="contact-state <%= contact.active ? 'is-active' : '' %>"><%= contact.active ? 'Aktiv' : 'Inaktiv' %></span>
             </article>
           <% }) %>
         </div>
-      <% } else { %><div class="empty-state compact-empty"><span>○</span><h3>Noch keine Ansprechpartner</h3><p>Lege den ersten Kundenbenutzer über das Formular an.</p></div><% } %>
+      <% } else { %><div class="empty-state compact-empty"><span>○</span><h3>Noch keine Ansprechpartner</h3><p>Ordne einen bestehenden Benutzer zu oder lege einen Kundenbenutzer an.</p></div><% } %>
     </section>
 
     <section class="panel">
@@ -98,7 +98,7 @@
       <form class="panel form-panel" action="/customers/<%= customer.id %>/contacts/assign" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="panel-header"><div><h2>Bestehenden Benutzer zuordnen</h2></div></div>
-        <label>Kundenbenutzer<select name="user_id" required><option value="">Bitte auswählen</option><% assignableContacts.forEach(contact => { %><option value="<%= contact.id %>"><%= contact.name %> · <%= contact.email %><%= contact.current_customer_name ? ` · bisher ${contact.current_customer_name}` : '' %></option><% }) %></select></label>
+        <label>Benutzer<select name="user_id" required><option value="">Bitte auswählen</option><% assignableContacts.forEach(contact => { %><option value="<%= contact.id %>"><%= contact.name %> · <%= contact.email %><%= contact.current_customer_name ? ` · bisher ${contact.current_customer_name}` : '' %></option><% }) %></select></label>
         <small>Die bisherige Kundenzuordnung wird ersetzt. Das Benutzerkonto und seine Tickets bleiben erhalten.</small>
         <button class="button button-secondary button-full" type="submit">Kundenbenutzer zuordnen</button>
       </form>

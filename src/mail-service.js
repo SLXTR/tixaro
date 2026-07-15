@@ -4,6 +4,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import nodemailer from "nodemailer";
 import { loadSystemConfiguration } from "./system-configuration.js";
+import { assertSafeMailChannel } from "./mail-host-security.js";
 import Pop3Command from "node-pop3";
 import { assignSystemRoleForLegacyRole } from "./access-control.js";
 import { autoAssignCustomerUser } from "./customer-assignment.js";
@@ -305,6 +306,7 @@ async function pollGraph(pool, channel, fetchImpl) {
 export async function pollMailChannel({ pool, config, channelId, fetchImpl = globalThis.fetch }) {
   const channel = await loadChannel(pool, config, channelId);
   if (!channel || !channel.active || channel.inbound_type === "none") return { imported: 0, skipped: true };
+  assertSafeMailChannel(channel);
   await pool.query("UPDATE mail_channels SET last_checked_at = NOW(), last_error = NULL WHERE id = $1", [channel.id]);
   try {
     const imported = channel.inbound_type === "imap" ? await pollImap(pool, channel)
@@ -343,6 +345,7 @@ export async function sendTicketEmail({ pool, config, ticketId, body, fetchImpl 
   const ticket = ticketResult.rows[0];
   const channel = await outboundChannel(pool, config, ticket);
   if (!channel || !ticket.requester_email) return { skipped: true, reason: "channel_missing" };
+  assertSafeMailChannel(channel);
   const subject = `[${ticket.ticket_number}] ${ticket.subject}`;
   const systemConfiguration = await loadSystemConfiguration(pool, config);
   const text = `${plainText(body)}\n\nTicket: ${systemConfiguration.appBaseUrl}/tickets/${ticket.id}`;
@@ -402,6 +405,7 @@ export async function sendTicketEmail({ pool, config, ticketId, body, fetchImpl 
 export async function testMailChannel({ pool, config, channelId, fetchImpl = globalThis.fetch }) {
   const channel = await loadChannel(pool, config, channelId);
   if (!channel) throw new Error("Mailkonto wurde nicht gefunden.");
+  assertSafeMailChannel(channel);
   const tested = [];
   if (channel.inbound_type === "imap") {
     const client = new ImapFlow({ host: channel.inbound_host, port: channel.inbound_port || (channel.inbound_secure ? 993 : 143), secure: channel.inbound_secure, doSTARTTLS: !channel.inbound_secure, auth: { user: channel.inbound_username, pass: channel.inboundPassword }, logger: false, socketTimeout: 30_000 });

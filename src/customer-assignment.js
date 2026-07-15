@@ -102,7 +102,7 @@ export async function backfillCustomerUsers(client, { customerId = null } = {}) 
   const users = await client.query(
     `SELECT u.id, u.email
      FROM users u LEFT JOIN customer_profiles cp ON cp.user_id = u.id
-     WHERE u.role = 'requester' AND cp.user_id IS NULL`
+     WHERE u.active = TRUE AND cp.user_id IS NULL`
   );
 
   let assignedCount = 0;

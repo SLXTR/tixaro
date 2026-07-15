@@ -5,7 +5,7 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 ## Funktionen
 
 - Dashboard mit offenen, dringenden und laufenden Tickets sowie Queue-Übersicht
-- Umfangreiches Rechtekonzept mit geschützten Systemrollen, frei anlegbaren Rollen und 18 granularen Berechtigungen
+- Umfangreiches Rechtekonzept mit geschützten Systemrollen, frei anlegbaren Rollen und 19 granularen Berechtigungen
 - Benutzergruppen mit mehreren Rollen, Mitgliedschaften sowie Queue-Zugriffen für Lesen und Bearbeiten
 - Ticketnummern, OTRS-nahe Status und Prioritätsstufen, Queues, Ticket-Typen, Fälligkeiten und Zuweisungen
 - SLA-Profile mit Erstreaktions- und Lösungszeit, Warnungen und Eskalationsansicht
@@ -18,7 +18,7 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 - Eigenes, vereinfachtes Kundenportal für Anfragen, Statusübersicht und zugeordnete Geräte
 - Adressvorschläge bei der Kundenerfassung und Kartenstandort in der Kundenakte auf Basis von Photon und OpenStreetMap
 - Eigene Firmendomain je Kunde statt einer allgemeinen Kunden-E-Mail-Adresse
-- Automatische Domain-Zuordnung sowie manuelle Zuordnung und Umordnung bestehender Kundenbenutzer
+- Automatische Domain-Zuordnung sowie manuelle Zuordnung und Umordnung von Kundenbenutzern, Agenten und Administratoren
 - Ressourcenverwaltung für Computer, Notebooks, Smartphones, Lizenzen und weitere Asset-Typen
 - Zuordnung von Ressourcen zu Unternehmen und einzelnen Kundenbenutzern
 - Automatische Geräteauswahl beim Erstellen eines Tickets für einen Kundenbenutzer
@@ -32,8 +32,10 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 - Automatische Ticketerstellung aus neuen Nachrichten, Zuordnung von Antworten über die Ticketnummer und Schutz vor Doppelimporten
 - Kundenakte mit Kontakten, Ressourcen, Ticketverlauf und Supportkennzahlen
 - Benutzerverwaltung und sichere Passwortspeicherung
-- Serverseitige Sitzungen, CSRF-Schutz, Rate-Limit und Sicherheits-Header
-- Moderne, responsive Tixaro-Oberfläche mit kompakter Navigation für Desktop, Tablet und Smartphone
+- Serverseitige Sitzungen mit automatischer Abmeldung anderer Geräte nach Passwortwechsel, CSRF-Schutz, Rate-Limit und Sicherheits-Header
+- Minimalistische, responsive Tixaro-Oberfläche mit gut lesbarer Typografie für Desktop, Tablet und Smartphone
+- Delegationsschutz für Administrator-, Rollen- und Gruppenrechte sowie serverseitig begrenzte Ticket- und Ressourcensichtbarkeit
+- Schutz der Mailanbindung vor Verbindungen zu Loopback-, Link-Local- und Metadaten-Adressen
 - Persistente Farbanpassung über sieben Farbwähler für Akzent, Flächen, Sekundärfarbe und Navigation
 - Frei anpassbarer Firmenname und eigenes Logo im ursprünglichen Seitenverhältnis; Tixaro bleibt als Standard erhalten
 - Aufgeräumtes Admin-Center mit vier klar gegliederten Bereichen und schneller Einstellungssuche

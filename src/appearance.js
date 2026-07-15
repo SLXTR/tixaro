@@ -1,4 +1,14 @@
 export const defaultAppearance = Object.freeze({
+  accent: "#0f766e",
+  accentDark: "#115e59",
+  canvas: "#f6f6f3",
+  surface: "#ffffff",
+  sage: "#475569",
+  sidebar: "#f6f6f3",
+  sidebarText: "#1f2937"
+});
+
+const versionOneAppearance = Object.freeze({
   accent: "#16b8a6",
   accentDark: "#0b8f84",
   canvas: "#f5f7fa",
@@ -65,7 +75,7 @@ export function normalizeAppearance(value = {}) {
 export async function loadAppearance(client) {
   const result = await client.query("SELECT value_json FROM system_preferences WHERE key = 'appearance'");
   const saved = result.rows[0]?.value_json;
-  const usesOldDefaults = saved && [legacyAppearance, previousDefaultAppearance].some((preset) =>
+  const usesOldDefaults = saved && [versionOneAppearance, legacyAppearance, previousDefaultAppearance].some((preset) =>
     Object.entries(preset).every(([key, value]) => String(saved[key] ?? "").toLowerCase() === value)
   );
   return usesOldDefaults ? { ...defaultAppearance } : normalizeAppearance(saved ?? {});

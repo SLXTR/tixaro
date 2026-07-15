@@ -158,7 +158,7 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
 
     const [contacts, assets, tickets, assignableContacts] = await Promise.all([
       pool.query(
-        `SELECT u.id, u.name, u.email, u.active, u.last_login_at, cp.job_title, cp.department, cp.phone, cp.site,
+        `SELECT u.id, u.name, u.email, u.role, u.active, u.last_login_at, cp.job_title, cp.department, cp.phone, cp.site,
                 COALESCE(t.ticket_count, 0)::int AS ticket_count, COALESCE(a.asset_count, 0)::int AS asset_count
          FROM customer_profiles cp
          JOIN users u ON u.id = cp.user_id
@@ -186,7 +186,7 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
          FROM users u
          LEFT JOIN customer_profiles cp ON cp.user_id = u.id
          LEFT JOIN customers current_customer ON current_customer.id = cp.customer_id
-         WHERE u.active = TRUE AND u.role = 'requester' AND (cp.customer_id IS NULL OR cp.customer_id <> $1)
+         WHERE u.active = TRUE AND (cp.customer_id IS NULL OR cp.customer_id <> $1)
          ORDER BY current_customer.name NULLS FIRST, u.name`,
         [customer.id]
       )
@@ -263,11 +263,11 @@ export function customersRouter({ pool, addressSearchUrl = "https://photon.komoo
     const userId = positiveInt(req.body.user_id);
     const [customer, user] = await Promise.all([
       id ? getCustomer(pool, id) : null,
-      userId ? pool.query("SELECT id, name FROM users WHERE id = $1 AND active = TRUE AND role = 'requester'", [userId]) : Promise.resolve({ rowCount: 0, rows: [] })
+      userId ? pool.query("SELECT id, name FROM users WHERE id = $1 AND active = TRUE", [userId]) : Promise.resolve({ rowCount: 0, rows: [] })
     ]);
     if (!customer) return res.status(404).render("error", { title: "Kunde nicht gefunden", message: "Der Kundeneintrag existiert nicht." });
     if (!user.rowCount) {
-      setFlash(req, "error", "Bitte wähle einen aktiven Kundenbenutzer aus.");
+      setFlash(req, "error", "Bitte wähle einen aktiven Benutzer aus.");
       return res.redirect(`/customers/${customer.id}#contacts`);
     }
     await assignCustomerUser(pool, { userId, customerId: customer.id });

@@ -22,6 +22,7 @@ const schemaStatements = [
     password_hash TEXT NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'agent', 'requester')),
     active BOOLEAN NOT NULL DEFAULT TRUE,
+    session_version INTEGER NOT NULL DEFAULT 1,
     last_login_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -300,6 +301,7 @@ const schemaStatements = [
   `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS channel VARCHAR(24) NOT NULL DEFAULT 'web'`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(80) NOT NULL DEFAULT 'Unbekannt'`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(80) NOT NULL DEFAULT 'Konto'`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS sla VARCHAR(24) NOT NULL DEFAULT 'standard'`,
   `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS response_due_at TIMESTAMPTZ`,
   `ALTER TABLE tickets ADD COLUMN IF NOT EXISTS resolution_due_at TIMESTAMPTZ`,

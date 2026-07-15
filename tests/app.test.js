@@ -91,16 +91,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.13",
-          name: "Tixaro 1.0.13",
+          tag_name: "v2.0.1",
+          name: "Tixaro 2.0.1",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.13",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v2.0.1",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.13");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v2.0.1");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -156,7 +156,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.12");
+  assert.equal(JSON.parse(packageMetadata).version, "2.0.0");
   assert.match(readme, /Vollständig deinstallieren/);
   assert.match(stylesheet, /--font-xs: 15px/);
   assert.match(stylesheet, /body \{[^}]*font: 18px\/1\.55/);
@@ -164,6 +164,9 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(layoutView, /settings-body/);
   assert.match(stylesheet, /\.settings-body \.main-content \{ width: min\(1920px, 100%\)/);
   assert.match(stylesheet, /\.settings-body \.admin-module-card:last-child:nth-child\(odd\) \{ min-height: 108px/);
+  assert.match(stylesheet, /Tixaro 2\.0 – minimalistische Oberfläche/);
+  assert.match(stylesheet, /\.login-card::before \{ display: none/);
+  assert.match(stylesheet, /\.config-total, \.config-state \{ display: none/);
 });
 
 test("Ersteinrichtung setzt alle zentralen Werte und sperrt sich danach", async () => {
@@ -536,9 +539,9 @@ test("Farben werden per Farbwähler gespeichert und als Theme ausgeliefert", asy
   page = await agent.get("/settings?section=appearance").expect(200);
   await agent.post("/settings/appearance/reset").type("form").send({ _csrf: csrfFrom(page.text) }).expect(302);
   const resetTheme = await agent.get("/theme.css").expect(200);
-  assert.match(resetTheme.text, /--accent:#16b8a6/);
-  assert.match(resetTheme.text, /--brand-coral:#ff6b5e/);
-  assert.match(resetTheme.text, /--sidebar:#101828/);
+  assert.match(resetTheme.text, /--accent:#0f766e/);
+  assert.match(resetTheme.text, /--brand-coral:#475569/);
+  assert.match(resetTheme.text, /--sidebar:#f6f6f3/);
 
   page = await agent.get("/settings?section=appearance").expect(200);
   assert.match(page.text, /Eigenes Logo auswählen/);
@@ -634,6 +637,88 @@ test("Rollen und Gruppen kombinieren Rechte mit Queue-Zugriffen", async () => {
   assert.equal(updated.rows[0].status, "in_progress");
 });
 
+test("Delegierte Verwaltung kann keine Administratorrechte erlangen", async () => {
+  const passwordHash = await bcrypt.hash("Delegiert123!", 4);
+  const delegatedRole = await pool.query(
+    "INSERT INTO access_roles (code, name, description) VALUES ('delegierte-verwaltung', 'Delegierte Verwaltung', 'Verwaltet Benutzer, Rollen und Gruppen ohne Adminrechte') RETURNING id"
+  );
+  for (const permission of ["users.manage", "roles.manage", "groups.manage"]) {
+    await pool.query("INSERT INTO role_permissions (role_id, permission_code) VALUES ($1, $2)", [delegatedRole.rows[0].id, permission]);
+  }
+  const delegatedUser = await pool.query(
+    "INSERT INTO users (name, email, password_hash, role) VALUES ('Dana Delegiert', 'dana.delegiert@example.com', $1, 'requester') RETURNING id",
+    [passwordHash]
+  );
+  await assignSystemRoleForLegacyRole(pool, delegatedUser.rows[0].id, "requester");
+  await pool.query("INSERT INTO user_access_roles (user_id, role_id) VALUES ($1, $2)", [delegatedUser.rows[0].id, delegatedRole.rows[0].id]);
+  const targetRole = await pool.query("INSERT INTO access_roles (code, name) VALUES ('delegiertes-ziel', 'Delegiertes Ziel') RETURNING id");
+  const group = await pool.query("INSERT INTO access_groups (name) VALUES ('Delegierte Gruppe') RETURNING id");
+  const adminRole = await pool.query("SELECT id FROM access_roles WHERE code = 'admin'");
+  const adminUser = await pool.query("SELECT id FROM users WHERE email = $1", [config.adminEmail]);
+
+  const delegated = request.agent(app);
+  let page = await delegated.get("/login").expect(200);
+  await delegated.post("/login").type("form").send({
+    _csrf: csrfFrom(page.text), email: "dana.delegiert@example.com", password: "Delegiert123!"
+  }).expect(302);
+
+  page = await delegated.get("/users").expect(200);
+  assert.doesNotMatch(page.text, /<option value="admin"/);
+  await delegated.post("/users").type("form").send({
+    _csrf: csrfFrom(page.text), first_name: "Unzulässig", last_name: "Admin",
+    email: "unzulassig-admin@example.com", role: "admin", password: "Unzulaessig123!"
+  }).expect(403);
+  await delegated.get(`/users/${adminUser.rows[0].id}/edit`).expect(403);
+  await delegated.post(`/users/${adminUser.rows[0].id}/toggle`).type("form").send({ _csrf: csrfFrom(page.text) }).expect(403);
+  assert.equal((await pool.query("SELECT id FROM users WHERE email = 'unzulassig-admin@example.com'")).rowCount, 0);
+
+  page = await delegated.get("/settings?section=groups").expect(200);
+  await delegated.post(`/settings/groups/${group.rows[0].id}/update`).type("form").send({
+    _csrf: csrfFrom(page.text), name: "Delegierte Gruppe", users: String(delegatedUser.rows[0].id), roles: String(adminRole.rows[0].id)
+  }).expect(403);
+  assert.equal((await pool.query("SELECT role_id FROM group_access_roles WHERE group_id = $1", [group.rows[0].id])).rowCount, 0);
+
+  page = await delegated.get("/settings?section=roles").expect(200);
+  await delegated.post(`/settings/roles/${targetRole.rows[0].id}/update`).type("form").send({
+    _csrf: csrfFrom(page.text), name: "Delegiertes Ziel", permissions: "users.grant_admin"
+  }).expect(403);
+  assert.equal((await pool.query("SELECT permission_code FROM role_permissions WHERE role_id = $1", [targetRole.rows[0].id])).rowCount, 0);
+});
+
+test("Passwortänderungen beenden andere aktive Sitzungen", async () => {
+  const passwordHash = await bcrypt.hash("SitzungAlt123!", 4);
+  const account = await pool.query(
+    "INSERT INTO users (name, email, password_hash, role) VALUES ('Sina Sitzung', 'sina.sitzung@example.com', $1, 'agent') RETURNING id",
+    [passwordHash]
+  );
+  await assignSystemRoleForLegacyRole(pool, account.rows[0].id, "agent");
+  const firstSession = request.agent(app);
+  const secondSession = request.agent(app);
+  for (const session of [firstSession, secondSession]) {
+    const login = await session.get("/login").expect(200);
+    await session.post("/login").type("form").send({
+      _csrf: csrfFrom(login.text), email: "sina.sitzung@example.com", password: "SitzungAlt123!"
+    }).expect(302);
+  }
+  let page = await firstSession.get("/account").expect(200);
+  await firstSession.post("/account/password").type("form").send({
+    _csrf: csrfFrom(page.text), current_password: "SitzungAlt123!", new_password: "SitzungNeu123!"
+  }).expect(302);
+  await firstSession.get("/account").expect(200);
+  await secondSession.get("/account").expect(302).expect("Location", "/login");
+
+  const oldLogin = request.agent(app);
+  page = await oldLogin.get("/login").expect(200);
+  await oldLogin.post("/login").type("form").send({
+    _csrf: csrfFrom(page.text), email: "sina.sitzung@example.com", password: "SitzungAlt123!"
+  }).expect(401);
+  const relogin = request.agent(app);
+  page = await relogin.get("/login").expect(200);
+  await relogin.post("/login").type("form").send({
+    _csrf: csrfFrom(page.text), email: "sina.sitzung@example.com", password: "SitzungNeu123!"
+  }).expect(302);
+});
+
 test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordnet", async () => {
   const agent = request.agent(app);
   let page = await agent.get("/login").expect(200);
@@ -650,6 +735,19 @@ test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordne
   const migratedDomain = await pool.query("SELECT domain FROM customers WHERE id = $1", [legacyCustomer.rows[0].id]);
   assert.equal(migratedDomain.rows[0].domain, "legacy-domain.test");
 
+  page = await agent.get("/users").expect(200);
+  await agent.post("/users").type("form").send({
+    _csrf: csrfFrom(page.text),
+    first_name: "Ada",
+    last_name: "Administratorin",
+    email: "ada@domain-automatik.test",
+    role: "admin",
+    password: "Customer123!"
+  }).expect(302);
+  const domainAdmin = await pool.query("SELECT id FROM users WHERE email = 'ada@domain-automatik.test'");
+  let adminAssignment = await pool.query("SELECT customer_id FROM customer_profiles WHERE user_id = $1", [domainAdmin.rows[0].id]);
+  assert.equal(adminAssignment.rowCount, 0);
+
   page = await agent.get("/customers").expect(200);
   assert.match(page.text, /name="domain"/);
   assert.doesNotMatch(page.text, /name="email"/);
@@ -662,6 +760,8 @@ test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordne
   const automaticCustomer = await pool.query("SELECT id, domain, email FROM customers WHERE name = 'Domain Automatik GmbH'");
   assert.equal(automaticCustomer.rows[0].domain, "domain-automatik.test");
   assert.equal(automaticCustomer.rows[0].email, null);
+  adminAssignment = await pool.query("SELECT customer_id FROM customer_profiles WHERE user_id = $1", [domainAdmin.rows[0].id]);
+  assert.equal(adminAssignment.rows[0].customer_id, automaticCustomer.rows[0].id);
 
   page = await agent.get("/users").expect(200);
   await agent.post("/users").type("form").send({
@@ -1005,6 +1105,19 @@ test("Mailkonten unterstützen Graph, IMAP, POP3 und SMTP mit verschlüsselten Z
   const queue = await pool.query("SELECT id FROM ticket_queues WHERE name = 'Allgemeiner Support'");
   await agent.post("/settings/mail").type("form").send({
     _csrf: csrfFrom(page.text),
+    connection_mode: "imap_smtp",
+    name: "Unsicheres lokales Postfach",
+    email_address: "local@example.com",
+    queue_id: queue.rows[0].id,
+    inbound_host: "127.0.0.1",
+    outbound_host: "169.254.169.254",
+    mail_password: "PostfachPasswort123!",
+    inbound_secure: "on",
+    active: "on"
+  }).expect(302);
+  assert.equal((await pool.query("SELECT id FROM mail_channels WHERE name = 'Unsicheres lokales Postfach'")).rowCount, 0);
+  await agent.post("/settings/mail").type("form").send({
+    _csrf: csrfFrom(page.text),
     name: "Microsoft 365 Support",
     email_address: "support@graph-mail.test",
     queue_id: queue.rows[0].id,
@@ -1141,14 +1254,31 @@ test("Kundenbenutzer landen in einer eigenen, vereinfachten Portalansicht", asyn
   );
   await assignSystemRoleForLegacyRole(pool, requester.rows[0].id, "requester");
   await pool.query("INSERT INTO customer_profiles (user_id, customer_id, department) VALUES ($1, $2, 'Einkauf')", [requester.rows[0].id, customer.rows[0].id]);
-  await pool.query(
+  const ownAsset = await pool.query(
     "INSERT INTO assets (asset_number, asset_type, name, customer_id, assigned_user_id) VALUES ('AST-PORTAL', 'Notebook', 'Paulas Notebook', $1, $2)",
     [customer.rows[0].id, requester.rows[0].id]
   );
-  await pool.query(
-    "INSERT INTO tickets (ticket_number, subject, description, category, requester_id, customer_id) VALUES ('TIX-2026-PORTAL', 'Portal-Testanfrage', 'Eine bestehende Anfrage im Portal.', 'Allgemeiner Support', $1, $2)",
+  const ownTicket = await pool.query(
+    "INSERT INTO tickets (ticket_number, subject, description, category, requester_id, customer_id) VALUES ('TIX-2026-PORTAL', 'Portal-Testanfrage', 'Eine bestehende Anfrage im Portal.', 'Allgemeiner Support', $1, $2) RETURNING id",
     [requester.rows[0].id, customer.rows[0].id]
   );
+  const ownAssetResult = await pool.query("SELECT id FROM assets WHERE asset_number = 'AST-PORTAL'");
+  await pool.query("INSERT INTO ticket_assets (ticket_id, asset_id, is_primary) VALUES ($1, $2, TRUE)", [ownTicket.rows[0].id, ownAssetResult.rows[0].id]);
+  const foreignRequester = await pool.query(
+    "INSERT INTO users (name, email, password_hash, role) VALUES ('Fremde Person', 'fremd@portal-kunde.test', $1, 'requester') RETURNING id",
+    [passwordHash]
+  );
+  await assignSystemRoleForLegacyRole(pool, foreignRequester.rows[0].id, "requester");
+  await pool.query("INSERT INTO customer_profiles (user_id, customer_id) VALUES ($1, $2)", [foreignRequester.rows[0].id, customer.rows[0].id]);
+  await pool.query(
+    "INSERT INTO assets (asset_number, asset_type, name, customer_id, assigned_user_id) VALUES ('AST-FREMD', 'Notebook', 'Fremdes vertrauliches Notebook', $1, $2)",
+    [customer.rows[0].id, foreignRequester.rows[0].id]
+  );
+  const foreignTicket = await pool.query(
+    "INSERT INTO tickets (ticket_number, subject, description, category, requester_id, customer_id) VALUES ('TIX-2026-FREMD', 'Vertraulicher früherer Vorgang', 'Darf für Paula nicht sichtbar sein.', 'Allgemeiner Support', $1, $2) RETURNING id",
+    [foreignRequester.rows[0].id, customer.rows[0].id]
+  );
+  await pool.query("INSERT INTO ticket_assets (ticket_id, asset_id) VALUES ($1, $2)", [foreignTicket.rows[0].id, ownAssetResult.rows[0].id]);
 
   const portalAgent = request.agent(app);
   let page = await portalAgent.get("/login").expect(200);
@@ -1165,6 +1295,8 @@ test("Kundenbenutzer landen in einer eigenen, vereinfachten Portalansicht", asyn
 
   page = await portalAgent.get("/tickets/new").expect(200);
   assert.match(page.text, /Neue Anfrage/);
+  assert.match(page.text, /Paulas Notebook/);
+  assert.doesNotMatch(page.text, /Fremdes vertrauliches Notebook/);
   assert.doesNotMatch(page.text, /name="sla"/);
   assert.doesNotMatch(page.text, /name="category"/);
   page = await portalAgent.get("/tickets").expect(200);
@@ -1174,6 +1306,9 @@ test("Kundenbenutzer landen in einer eigenen, vereinfachten Portalansicht", asyn
   assert.match(page.text, /Meine Geräte/);
   assert.match(page.text, /Paulas Notebook/);
   assert.doesNotMatch(page.text, /Inventar &amp; CMDB/);
+  page = await portalAgent.get(`/assets/${ownAssetResult.rows[0].id}`).expect(200);
+  assert.match(page.text, /Portal-Testanfrage/);
+  assert.doesNotMatch(page.text, /Vertraulicher früherer Vorgang/);
   await portalAgent.get("/settings").expect(403);
 });
 

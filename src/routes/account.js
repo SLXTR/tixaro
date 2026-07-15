@@ -27,7 +27,11 @@ export function accountRouter({ pool }) {
       return res.status(422).render("account", { title: "Mein Konto", error: "Das aktuelle Passwort ist falsch oder das neue Passwort hat weniger als 10 Zeichen." });
     }
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await pool.query("UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2", [passwordHash, req.user.id]);
+    const updated = await pool.query(
+      "UPDATE users SET password_hash = $1, session_version = session_version + 1, updated_at = NOW() WHERE id = $2 RETURNING session_version",
+      [passwordHash, req.user.id]
+    );
+    req.session.sessionVersion = updated.rows[0].session_version;
     setFlash(req, "success", "Passwort wurde geändert.");
     res.redirect("/account");
   });

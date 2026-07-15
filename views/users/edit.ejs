@@ -2,7 +2,7 @@
 <header class="workbench-heading">
   <div><h1>Benutzer bearbeiten</h1><p><%= editedUser.name %> · <%= editedUser.email %></p></div>
   <div class="workbench-actions">
-    <% if (currentUser.role === 'admin' && editedUser.role === 'requester' && editedUser.active) { %>
+    <% if (can('users.grant_admin') && editedUser.role === 'requester' && editedUser.active) { %>
       <form action="/users/<%= editedUser.id %>/preview" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary" type="submit">Portal als Benutzer ansehen</button></form>
     <% } %>
     <a class="button button-secondary" href="/users">Abbrechen</a>
@@ -19,7 +19,7 @@
       <label>Nachname<input name="last_name" value="<%= values.last_name || '' %>" minlength="2" maxlength="80" required></label>
       <label>E-Mail-Adresse<input type="email" name="email" value="<%= values.email || '' %>" required></label>
       <label>Rolle<select name="role" <%= editedUser.id === currentUser.id ? 'disabled' : '' %>><% roles.forEach(role => { %><option value="<%= role %>" <%= values.role === role ? 'selected' : '' %>><%= roleLabel(role) %></option><% }) %></select><% if (editedUser.id === currentUser.id) { %><small>Die eigene Rolle kann hier nicht geändert werden.</small><input type="hidden" name="role" value="<%= editedUser.role %>"><% } %></label>
-      <label class="field-full">Kundenzuordnung <small>für Kundenbenutzer</small><select name="customer_id"><option value="">Automatisch über E-Mail-Domain</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id || '') === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · @<%= customer.domain %></option><% }) %></select><small>Die Auswahl ordnet den Benutzer sofort und unabhängig von seiner E-Mail-Domain zu.</small></label>
+      <label class="field-full">Kundenzuordnung <small>für alle Rollen</small><select name="customer_id"><option value="">Automatisch über E-Mail-Domain</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id || '') === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · @<%= customer.domain %></option><% }) %></select><small>Die Auswahl ordnet Kundenbenutzer, Agenten und Administratoren unabhängig von ihrer E-Mail-Domain zu.</small></label>
       <label class="field-full">Neues Passwort <small>optional</small><input type="password" name="password" minlength="10" autocomplete="new-password"><small>Leer lassen, um das bestehende Passwort beizubehalten.</small></label>
     </div>
     <div><button class="button button-primary" type="submit">Änderungen speichern</button></div>

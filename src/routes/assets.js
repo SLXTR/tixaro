@@ -176,12 +176,30 @@ export function assetsRouter({ pool }) {
     const asset = id ? await getAsset(pool, id, req.user) : null;
     if (!asset) return res.status(404).render("error", { title: "Ressource nicht gefunden", message: "Die Ressource existiert nicht oder ist nicht sichtbar." });
 
+    const ticketParams = [asset.id];
+    const ticketVisibility = [];
+    if (!hasPermission(req.user, "tickets.view_all")) {
+      if (hasPermission(req.user, "tickets.view_own")) {
+        ticketParams.push(req.user.id);
+        ticketVisibility.push(`t.requester_id = $${ticketParams.length}`);
+      }
+      const accessibleQueues = Object.keys(req.user.queuePermissions ?? {});
+      if (accessibleQueues.length) {
+        const placeholders = accessibleQueues.map((queueName) => {
+          ticketParams.push(queueName);
+          return `$${ticketParams.length}`;
+        });
+        ticketVisibility.push(`t.category IN (${placeholders.join(", ")})`);
+      }
+    }
+    const visibilityClause = hasPermission(req.user, "tickets.view_all")
+      ? "" : `AND (${ticketVisibility.length ? ticketVisibility.join(" OR ") : "FALSE"})`;
     const tickets = await pool.query(
       `SELECT t.*, requester.name AS requester_name, assignee.name AS assignee_name
        FROM ticket_assets ta JOIN tickets t ON t.id = ta.ticket_id
        JOIN users requester ON requester.id = t.requester_id LEFT JOIN users assignee ON assignee.id = t.assignee_id
-       WHERE ta.asset_id = $1 ORDER BY t.updated_at DESC`,
-      [asset.id]
+       WHERE ta.asset_id = $1 ${visibilityClause} ORDER BY t.updated_at DESC`,
+      ticketParams
     );
     const [options, { assetTypes }, history] = await Promise.all([
       !hasPermission(req.user, "assets.manage") ? Promise.resolve({ customers: [], contacts: [] }) : formOptions(pool),

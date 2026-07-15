@@ -32,6 +32,7 @@ export function authRouter({ pool, config }) {
     req.session.regenerate((error) => {
       if (error) return next(error);
       req.session.userId = user.id;
+      req.session.sessionVersion = user.session_version;
       req.session.csrfToken = crypto.randomBytes(32).toString("hex");
       pool.query("UPDATE users SET last_login_at = NOW() WHERE id = $1", [user.id]).catch(console.error);
       res.redirect(user.role === "requester" ? "/portal" : "/");

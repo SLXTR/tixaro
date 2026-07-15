@@ -61,12 +61,14 @@ async function ticketFormData(pool, user) {
            FROM users u LEFT JOIN customer_profiles cp ON cp.user_id = u.id LEFT JOIN customers c ON c.id = cp.customer_id
            WHERE u.active = TRUE AND u.role = 'requester' ORDER BY c.name NULLS LAST, u.name`
         ),
-    pool.query("SELECT id, name FROM users WHERE active = TRUE AND role IN ('admin', 'agent') ORDER BY name"),
+    !canManage ? Promise.resolve({ rows: [] }) : pool.query("SELECT id, name FROM users WHERE active = TRUE AND role IN ('admin', 'agent') ORDER BY name"),
     pool.query(
       `SELECT a.id, a.asset_number, a.asset_type, a.name, a.assigned_user_id, a.status,
               c.name AS customer_name, u.name AS assigned_user_name
        FROM assets a LEFT JOIN customers c ON c.id = a.customer_id LEFT JOIN users u ON u.id = a.assigned_user_id
-       WHERE a.status NOT IN ('retired', 'lost') ORDER BY c.name NULLS LAST, u.name NULLS LAST, a.name`
+       WHERE a.status NOT IN ('retired', 'lost') ${canManage ? "" : "AND a.assigned_user_id = $1"}
+       ORDER BY c.name NULLS LAST, u.name NULLS LAST, a.name`,
+      canManage ? [] : [user.id]
     )
   ]);
   return { requesters: requesters.rows, agents: agents.rows, assets: assets.rows };

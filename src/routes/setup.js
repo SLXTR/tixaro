@@ -51,6 +51,7 @@ export function setupRouter({ pool, config, setupState }) {
       req.session.regenerate((error) => {
         if (error) return next(error);
         req.session.userId = adminId;
+        req.session.sessionVersion = 1;
         setFlash(req, "success", "Die Ersteinrichtung ist abgeschlossen. Willkommen bei Tixaro.");
         res.redirect("/");
       });

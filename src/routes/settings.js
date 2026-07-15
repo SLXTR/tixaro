@@ -13,6 +13,7 @@ import { loadNumberFormats, numberFormatOptions, saveNumberFormats } from "../nu
 import { templateVariables } from "../template-engine.js";
 import { checkForUpdate, installUpdate, updateOverview } from "../system-update.js";
 import { loadSystemConfiguration, saveSystemConfiguration, setupTimeZones, validAppBaseUrl, validTimeZone } from "../system-configuration.js";
+import { unsafeMailHost } from "../mail-host-security.js";
 
 const sections = ["overview", "queues", "ticket-types", "sla", "numbers", "templates", "asset-types", "mail", "roles", "groups", "appearance", "system", "updates"];
 const templateTypes = Object.freeze({ reply: "Antwort", signature: "Signatur", auto_reply: "Automatische Antwort" });
@@ -96,6 +97,7 @@ function mailChannelValues(body, config, existing = {}) {
 
 async function mailChannelError(pool, values, excludedId = null) {
   if (values.name.length < 2 || !values.emailAddress.includes("@")) return "Name und gültige E-Mail-Adresse sind erforderlich.";
+  if (unsafeMailHost(values.inboundHost) || unsafeMailHost(values.outboundHost)) return "Lokale, Link-Local- und Metadaten-Adressen sind als Mailserver nicht zulässig.";
   if (await isDuplicate(pool, "mail_channels", values.name, excludedId)) return "Ein Mailkonto mit diesem Namen existiert bereits.";
   if (values.queueId && !(await pool.query("SELECT id FROM ticket_queues WHERE id = $1", [values.queueId])).rowCount) return "Die ausgewählte Queue existiert nicht.";
   if (["imap", "pop3"].includes(values.inboundType) && (!values.inboundHost || !values.inboundUsername || !values.inboundSecret)) return "Für IMAP oder POP3 werden Server, Benutzername und Passwort benötigt.";
@@ -260,12 +262,13 @@ export function settingsRouter({ pool, config }) {
       section === "updates" ? updateOverview(config) : Promise.resolve(null)
     ]);
 
+    const callerPermissions = new Set(req.user.permissions ?? []);
     const roles = rolesResult.rows.map((role) => ({
       ...role,
       permissionCodes: rolePermissions.rows.filter((item) => item.role_id === role.id).map((item) => item.permission_code),
       userIds: roleUsers.rows.filter((item) => item.role_id === role.id).map((item) => item.user_id),
       groupCount: groupRoles.rows.filter((item) => item.role_id === role.id).length
-    }));
+    })).map((role) => ({ ...role, delegable: role.permissionCodes.every((code) => callerPermissions.has(code)) }));
     const groups = groupsResult.rows.map((group) => ({
       ...group,
       userIds: groupMembers.rows.filter((item) => item.group_id === group.id).map((item) => item.user_id),
@@ -326,7 +329,7 @@ export function settingsRouter({ pool, config }) {
       mailEvents: mailEventsResult.rows,
       roles,
       groups,
-      permissions: permissionsResult.rows,
+      permissions: permissionsResult.rows.filter((permission) => callerPermissions.has(permission.code)),
       userRecords: userRecords.rows,
       appearance,
       hasCustomLogo: Boolean(brandLogo),
@@ -693,7 +696,10 @@ export function settingsRouter({ pool, config }) {
     }
     const permissionCodes = new Set(values(req.body.permissions));
     const userIds = new Set(values(req.body.users).map(positiveInt).filter(Boolean));
-    const validPermissions = new Set((await pool.query("SELECT code FROM permission_definitions")).rows.map((row) => row.code));
+    const validPermissions = new Set(req.user.permissions ?? []);
+    if ([...permissionCodes].some((code) => !validPermissions.has(code))) return denied(res);
+    const existingPermissions = await pool.query("SELECT permission_code FROM role_permissions WHERE role_id = $1", [id]);
+    if (existingPermissions.rows.some((row) => !validPermissions.has(row.permission_code))) return denied(res);
     const validUsers = new Set((await pool.query("SELECT id FROM users")).rows.map((row) => row.id));
     const client = await pool.connect();
     try {
@@ -719,6 +725,8 @@ export function settingsRouter({ pool, config }) {
     const role = id ? await pool.query("SELECT system_role FROM access_roles WHERE id = $1", [id]) : { rowCount: 0, rows: [] };
     if (!role.rowCount || role.rows[0].system_role) setFlash(req, "error", "Systemrollen können nicht deaktiviert werden.");
     else {
+      const permissions = await pool.query("SELECT permission_code FROM role_permissions WHERE role_id = $1", [id]);
+      if (permissions.rows.some((row) => !req.user.permissions.includes(row.permission_code))) return denied(res);
       await pool.query("UPDATE access_roles SET active = NOT active, updated_at = NOW() WHERE id = $1", [id]);
       setFlash(req, "success", "Rollenstatus wurde geändert.");
     }
@@ -747,7 +755,21 @@ export function settingsRouter({ pool, config }) {
     const userIds = new Set(values(req.body.users).map(positiveInt).filter(Boolean));
     const roleIds = new Set(values(req.body.roles).map(positiveInt).filter(Boolean));
     const validUsers = new Set((await pool.query("SELECT id FROM users")).rows.map((row) => row.id));
-    const validRoles = new Set((await pool.query("SELECT id FROM access_roles WHERE active = TRUE")).rows.map((row) => row.id));
+    const rolePermissionRows = await pool.query(
+      `SELECT r.id, rp.permission_code FROM access_roles r
+       LEFT JOIN role_permissions rp ON rp.role_id = r.id WHERE r.active = TRUE`
+    );
+    const callerPermissions = new Set(req.user.permissions ?? []);
+    const permissionsByRole = new Map();
+    for (const row of rolePermissionRows.rows) {
+      if (!permissionsByRole.has(row.id)) permissionsByRole.set(row.id, []);
+      if (row.permission_code) permissionsByRole.get(row.id).push(row.permission_code);
+    }
+    const validRoles = new Set([...permissionsByRole.entries()]
+      .filter(([, permissionCodes]) => permissionCodes.every((code) => callerPermissions.has(code)))
+      .map(([roleId]) => roleId));
+    const existingGroupRoles = await pool.query("SELECT role_id FROM group_access_roles WHERE group_id = $1", [id]);
+    if (existingGroupRoles.rows.some((row) => !validRoles.has(row.role_id)) || [...roleIds].some((roleId) => !validRoles.has(roleId))) return denied(res);
     const queueRows = (await pool.query("SELECT id FROM ticket_queues")).rows;
     const client = await pool.connect();
     try {
@@ -774,7 +796,14 @@ export function settingsRouter({ pool, config }) {
   });
 
   router.post("/groups/:id/toggle", async (req, res) => {
-    await pool.query("UPDATE access_groups SET active = NOT active, updated_at = NOW() WHERE id = $1", [positiveInt(req.params.id)]);
+    const id = positiveInt(req.params.id);
+    const permissions = await pool.query(
+      `SELECT DISTINCT rp.permission_code FROM group_access_roles gr
+       JOIN role_permissions rp ON rp.role_id = gr.role_id WHERE gr.group_id = $1`,
+      [id]
+    );
+    if (permissions.rows.some((row) => !req.user.permissions.includes(row.permission_code))) return denied(res);
+    await pool.query("UPDATE access_groups SET active = NOT active, updated_at = NOW() WHERE id = $1", [id]);
     setFlash(req, "success", "Gruppenstatus wurde geändert.");
     redirectTo(res, "groups");
   });

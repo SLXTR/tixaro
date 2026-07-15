@@ -6,38 +6,53 @@ export function loadUser(pool) {
     res.locals.portalPreview = null;
     if (!req.session.userId) return next();
 
-    let result = await pool.query(
-      "SELECT id, first_name, last_name, name, email, role, active, created_at FROM users WHERE id = $1 AND active = TRUE",
-      [req.session.userId]
+    const clearAuthentication = () => {
+      req.session.userId = null;
+      delete req.session.sessionVersion;
+      delete req.session.originalUserId;
+      delete req.session.originalSessionVersion;
+    };
+    const loadActiveUser = (id, adminOnly = false) => pool.query(
+      `SELECT id, first_name, last_name, name, email, role, active, session_version, created_at
+       FROM users WHERE id = $1 AND active = TRUE ${adminOnly ? "AND role = 'admin'" : ""}`,
+      [id]
     );
-    if (result.rowCount === 0) {
+    const versionMatches = (stored, sessionVersion) => sessionVersion == null || Number(stored) === Number(sessionVersion);
+
+    let result = await loadActiveUser(req.session.userId);
+    if (!result.rowCount || !versionMatches(result.rows[0].session_version, req.session.sessionVersion)) {
       if (!req.session.originalUserId) {
-        req.session.userId = null;
+        clearAuthentication();
         return next();
       }
-      result = await pool.query(
-        "SELECT id, first_name, last_name, name, email, role, active, created_at FROM users WHERE id = $1 AND active = TRUE AND role = 'admin'",
-        [req.session.originalUserId]
-      );
-      if (!result.rowCount) {
-        req.session.userId = null;
-        delete req.session.originalUserId;
+      result = await loadActiveUser(req.session.originalUserId, true);
+      if (!result.rowCount || !versionMatches(result.rows[0].session_version, req.session.originalSessionVersion)) {
+        clearAuthentication();
         return next();
       }
       req.session.userId = result.rows[0].id;
+      req.session.sessionVersion = result.rows[0].session_version;
       delete req.session.originalUserId;
+      delete req.session.originalSessionVersion;
+    } else if (req.session.sessionVersion == null) {
+      req.session.sessionVersion = result.rows[0].session_version;
     }
     req.user = { ...result.rows[0], ...await loadAccessContext(pool, result.rows[0].id) };
     if (req.session.originalUserId && req.user.role === "requester") {
       const original = await pool.query(
-        "SELECT id, first_name, last_name, name, email, role FROM users WHERE id = $1 AND active = TRUE AND role = 'admin'",
+        "SELECT id, first_name, last_name, name, email, role, session_version FROM users WHERE id = $1 AND active = TRUE AND role = 'admin'",
         [req.session.originalUserId]
       );
-      if (original.rowCount && original.rows[0].id !== req.user.id) {
+      const originalIsValid = original.rowCount
+        && Number(original.rows[0].session_version) === Number(req.session.originalSessionVersion);
+      if (originalIsValid && original.rows[0].id !== req.user.id) {
         req.portalPreview = { admin: original.rows[0], user: req.user };
         res.locals.portalPreview = req.portalPreview;
       } else {
-        delete req.session.originalUserId;
+        clearAuthentication();
+        req.user = null;
+        res.locals.currentUser = null;
+        return next();
       }
     }
     res.locals.currentUser = req.user;

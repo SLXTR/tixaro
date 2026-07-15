@@ -1294,3 +1294,127 @@ label small { color: var(--muted); font-weight: 450; }
   .spec-grid div { border-right: 0; }
   .topbar-action { padding-inline: 12px; }
 }
+
+/* Tixaro 2.0 – minimalistische Oberfläche */
+:root {
+  --ink: #374151;
+  --ink-strong: #111827;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --line: #deded9;
+  --line-soft: #ecece8;
+  --surface: #ffffff;
+  --canvas: #f6f6f3;
+  --accent: #0f766e;
+  --accent-dark: #115e59;
+  --accent-soft: #edf7f5;
+  --sage: #475569;
+  --sage-soft: #f1f3f5;
+  --sidebar: #f6f6f3;
+  --sidebar-text: #1f2937;
+  --radius: 4px;
+  --shadow-sm: none;
+  --shadow-md: none;
+}
+
+body { font-family: "Segoe UI Variable", "Avenir Next", "Segoe UI", Arial, sans-serif; background: var(--canvas); }
+h1 { font-size: clamp(28px, 2.2vw, 36px); font-weight: 680; letter-spacing: -.025em; }
+h2, h3 { font-weight: 680; }
+.eyebrow, .panel-kicker, .admin-breadcrumb { display: none; }
+
+.sidebar { width: 248px; padding: 0 12px 14px; box-shadow: none; }
+.brand { padding-inline: 8px; border-bottom-color: var(--line); }
+.brand strong, .user-meta strong { color: var(--sidebar-text); }
+.brand small, .user-meta small, .nav-section { color: color-mix(in srgb, var(--sidebar-text) 62%, transparent); }
+.nav { gap: 0; padding-top: 10px; }
+.nav-link { min-height: 42px; padding: 8px 10px; border-radius: 3px; color: color-mix(in srgb, var(--sidebar-text) 76%, transparent); font-weight: 560; }
+.nav-link:hover { color: var(--sidebar-text); background: color-mix(in srgb, var(--sidebar-text) 5%, transparent); }
+.nav-link.is-active { box-shadow: inset 3px 0 var(--accent); color: var(--ink-strong); background: var(--surface); }
+.nav-section { padding: 18px 10px 6px; font-size: 14px !important; font-weight: 600; }
+.sidebar-footer { border-top-color: var(--line); }
+.user-card { border-radius: 3px; }
+.user-card:hover, .user-menu[open] > .user-card { background: var(--surface); }
+.avatar, .assignee-cell i { border-radius: 3px; }
+.user-menu-popover, .admin-command-menu, .address-suggestion-list { border-radius: 4px; box-shadow: 0 10px 30px rgba(17,24,39,.1); }
+
+.main-column { margin-left: 248px; }
+.topbar { min-height: 64px; padding-inline: 32px; background: color-mix(in srgb, var(--surface) 98%, transparent); backdrop-filter: none; }
+.topbar-context strong { font-weight: 650; }
+.global-search { margin-left: auto; margin-right: 0; }
+.global-search input { border: 1px solid transparent; border-radius: 3px; background: #f5f5f2; }
+.global-search kbd { border-radius: 2px; }
+.topbar-action { border-radius: 3px; font-weight: 650; }
+.main-content, .customer-portal-body .main-content { width: min(1560px, 100%); padding: 36px 42px 72px; }
+
+.button { border-radius: 3px; font-weight: 650; transition: background .12s ease, border-color .12s ease; }
+.button-secondary:hover { border-color: var(--muted-2); background: #f7f7f4; }
+input, select, textarea { border-radius: 3px; }
+input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 13%, transparent); }
+.panel, .stat-card, .workspace-card, .statistics-metrics article, .portal-stat-grid a, .portal-asset-card,
+.message-card, .reply-box, .setup-card { border-radius: var(--radius); box-shadow: none; }
+.panel-header { min-height: 62px; padding: 15px 18px; }
+.stat-grid { gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--line); }
+.stat-card { min-height: 82px; border: 0; border-radius: 0; }
+.stat-card:hover { background: #fafaf8; }
+.stat-card strong { font-size: 26px; font-weight: 680; }
+.stat-card-dark { color: var(--ink); background: var(--surface); }
+.stat-card-dark small, .stat-card-dark strong, .stat-card-dark > span:last-child { color: inherit; }
+.ticket-table th, .history-table th { background: #f7f7f4; font-weight: 650; }
+.ticket-table tbody tr:hover, .queue-row:hover, .config-item summary:hover { background: #fafaf8; }
+.badge, .priority, .role-pill, .sla-chip, .status-pill, .asset-status, .mail-event-status, .portal-step {
+  border: 1px solid var(--line); border-radius: 3px; color: var(--ink); background: #f7f7f4;
+}
+.priority-urgent, .sla-escalated, .mail-event-status.status-failed { border-color: #f2c8ce; color: var(--red); background: #fff7f8; }
+.badge-status-resolved, .badge-status-closed, .sla-done, .mail-event-status.status-imported, .mail-event-status.status-sent { color: var(--ink); background: #f5f6f4; }
+.reply-box { box-shadow: none; }
+.info-box, .portal-preview-banner { border-color: var(--line); border-radius: 3px; background: #f7f7f4; }
+
+.auth-body { background: var(--canvas); }
+.login-card { width: min(400px, calc(100% - 40px)); padding: 36px 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.login-card::before { display: none; }
+.login-brand { margin-bottom: 56px; }
+.login-copy { margin-bottom: 28px; }
+.login-copy h1 { font-size: 32px; }
+.login-card input { background: var(--surface); }
+
+.admin-module-list { border-radius: var(--radius); }
+.admin-module-card, .admin-module-card:last-child:nth-child(odd) { min-height: 86px; padding: 17px 19px; }
+.admin-module-card:hover { background: #fafaf8; }
+.admin-module-count, .config-total, .config-state { display: none; }
+.config-item[open], .config-body { background: #fafaf8; }
+.config-item summary { grid-template-columns: 34px minmax(220px, 1fr) minmax(160px, .55fr) auto; }
+.config-body { padding: 19px 22px 19px 68px; }
+.settings-tabs a { border-radius: 3px; }
+.settings-tabs a.is-active { color: var(--ink-strong); background: var(--surface); box-shadow: inset 3px 0 var(--accent); }
+.settings-tabs b { border-radius: 3px; }
+.settings-body .admin-module-list { border-radius: var(--radius); }
+.settings-body .admin-module-card, .settings-body .admin-module-card:last-child:nth-child(odd) { min-height: 92px; padding: 19px 21px; }
+
+.portal-hero { min-height: auto; grid-template-columns: 1fr; padding: 24px 26px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); background: var(--surface); }
+.portal-hero h1, .portal-hero p { color: var(--ink-strong); }
+.portal-kicker, .portal-hero-mark { display: none; }
+.portal-contact-card { border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
+.portal-contact-card h3, .portal-contact-card p { color: var(--ink-strong); }
+.portal-contact-icon, .portal-empty > span, .asset-hero-icon { border-radius: 3px; color: var(--accent); background: var(--accent-soft); }
+.portal-asset-card:hover { border-color: var(--muted-2); box-shadow: none; }
+.user-row { grid-template-columns: auto minmax(190px, 1fr) minmax(120px, auto) auto auto; }
+
+@media (max-width: 1320px) {
+  .dashboard-grid, .admin-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1024px) {
+  .sidebar { width: min(292px, calc(100vw - 48px)); }
+  .main-column { margin-left: 0; }
+  .menu-button { width: auto; min-width: 58px; padding-inline: 10px; border-radius: 3px; }
+  .main-content, .settings-body .main-content { padding: 28px 24px 64px; }
+}
+
+@media (max-width: 720px) {
+  .main-content, .settings-body .main-content { padding: 24px 16px 52px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .user-row { grid-template-columns: 40px minmax(0, 1fr); }
+  .config-item summary, .config-item-compact summary { grid-template-columns: 28px minmax(0, 1fr); }
+  .config-open, .config-default { display: none; }
+  .login-card { padding-block: 24px; }
+}
