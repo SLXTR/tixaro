@@ -80,7 +80,15 @@ mark_host_updater_ready() {
 
 install_host_updater() {
   command -v systemctl >/dev/null 2>&1 || return 0
-  if systemctl is-enabled --quiet tixaro-update.timer 2>/dev/null && [ -x /usr/local/libexec/tixaro-update ]; then
+  install_dir="$(pwd -P)"
+  install_user="${SUDO_USER:-$(id -un)}"
+  if printf '%s' "$install_dir" | grep -Eq '[^A-Za-z0-9_./-]' || ! printf '%s' "$install_user" | grep -Eq '^[A-Za-z_][A-Za-z0-9_-]*$'; then
+    echo "Ein-Klick-Updates konnten für diesen Installationspfad nicht sicher eingerichtet werden."
+    return 0
+  fi
+
+  expected_exec="ExecStart=/bin/sh ${install_dir}/deploy/update-host.sh ${install_dir}"
+  if systemctl is-enabled --quiet tixaro-update.timer 2>/dev/null && systemctl cat tixaro-update.service 2>/dev/null | grep -Fq "$expected_exec"; then
     mark_host_updater_ready || true
     return 0
   fi
@@ -105,22 +113,7 @@ install_host_updater() {
     return 0
   fi
 
-  install_dir="$(pwd -P)"
-  install_user="${SUDO_USER:-$(id -un)}"
-  if printf '%s' "$install_dir" | grep -Eq '[^A-Za-z0-9_./-]' || ! printf '%s' "$install_user" | grep -Eq '^[A-Za-z_][A-Za-z0-9_-]*$'; then
-    echo "Ein-Klick-Updates konnten für diesen Installationspfad nicht sicher eingerichtet werden."
-    return 0
-  fi
-
   sed -e "s|__INSTALL_DIR__|${install_dir}|g" -e "s|__INSTALL_USER__|${install_user}|g" deploy/tixaro-update.service.template > "$generated_dir/tixaro-update.service"
-  if ! run_as_root install -d -m 0755 /usr/local/libexec; then
-    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
-    return 0
-  fi
-  if ! run_as_root install -m 0755 deploy/update-host.sh /usr/local/libexec/tixaro-update; then
-    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
-    return 0
-  fi
   if ! run_as_root install -m 0644 "$generated_dir/tixaro-update.service" /etc/systemd/system/tixaro-update.service; then
     echo "Ein-Klick-Updates konnten nicht aktiviert werden."
     return 0
@@ -133,6 +126,7 @@ install_host_updater() {
     echo "Ein-Klick-Updates konnten nicht aktiviert werden."
     return 0
   fi
+  run_as_root rm -f /usr/local/libexec/tixaro-update 2>/dev/null || true
   set_env_value TIXARO_ENABLE_UI_UPDATES yes
   if mark_host_updater_ready; then
     echo "Ein-Klick-Updates wurden im Admin-Center aktiviert."

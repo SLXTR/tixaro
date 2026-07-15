@@ -118,6 +118,8 @@ Passe im letzten Befehl nur den Domainnamen an. Die lokale Portfreigabe ist auss
 
 Unter **Einstellungen → Systemupdate** kann ein Administrator nach einem veröffentlichten GitHub-Release suchen und es mit einem Klick installieren. Der Host-Helfer übernimmt ausschließlich den angeforderten Release-Tag, prüft Fast-Forward-Fähigkeit und Versionsnummer, baut die Container neu und startet Tixaro. Lokale Änderungen brechen den Vorgang zum Schutz der Installation ab.
 
+Installationen bis einschließlich Version 1.0.5 aktualisieren den Systemdienst einmalig manuell. Führe dazu als ursprünglicher Installationsbenutzer im Tixaro-Verzeichnis `git pull --ff-only` und anschließend `sh install.sh` aus. Ab Version 1.0.6 wird der Helfer direkt aus der Installation gestartet und bei künftigen Releases automatisch mitaktualisiert.
+
 Der Button führt bewusst kein `sudo` im Container aus und klont keinen Quellcode in den laufenden Container. Der einmalig installierte Dienst läuft als normaler Installationsbenutzer und besitzt nur den festen Tixaro-Ablauf. Falls der Dienst nicht aktiviert wurde, kann weiterhin manuell aktualisiert werden:
 
 ```bash
@@ -134,7 +136,7 @@ systemctl status tixaro-update.timer
 journalctl -u tixaro-update.service
 ```
 
-Bei einem GitHub-API-Limit oder einem privaten Repository kann in `.env` optional `TIXARO_GITHUB_TOKEN` gesetzt werden. Der Host-Helfer liest den Token über eine geschützte temporäre Curl-Konfiguration ein, damit er nicht in der Prozessliste erscheint. Fehlgeschlagene Anforderungen werden einmalig verarbeitet; die konkrete Ursache steht anschließend im Admin-Center und im Systemprotokoll.
+Bei einem GitHub-API-Limit oder einem privaten Repository kann in `.env` optional `TIXARO_GITHUB_TOKEN` gesetzt werden. Der Host-Helfer liest den Token über eine geschützte temporäre Curl-Konfiguration ein, damit er nicht in der Prozessliste erscheint. Fehlgeschlagene Anforderungen werden einmalig verarbeitet; die konkrete Ursache steht anschließend im Admin-Center und im Systemprotokoll. Der Systemdienst führt den Helfer direkt aus der geprüften Tixaro-Installation aus, damit zukünftige Releases keine veraltete Kopie unter `/usr/local` zurücklassen.
 
 ## Vollständig deinstallieren
 
