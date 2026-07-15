@@ -90,16 +90,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v1.0.4",
-          name: "Tixaro 1.0.4",
+          tag_name: "v1.0.5",
+          name: "Tixaro 1.0.5",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.4",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.5",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.4");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.5");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -130,7 +130,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(updateHelper, /git merge --ff-only/);
   assert.match(updateHelper, /releases\/latest/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.3");
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.4");
   assert.match(readme, /Vollständig deinstallieren/);
 });
 
