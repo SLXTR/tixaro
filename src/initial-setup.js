@@ -102,7 +102,7 @@ export async function completeInitialSetup(pool, values) {
     await client.query(
       `INSERT INTO system_preferences (key, value_json, updated_at) VALUES ('setup_completed', $1, NOW())
        ON CONFLICT (key) DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = NOW()`,
-      [JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: "1.0.1" })]
+      [JSON.stringify({ completed: true, completedAt: new Date().toISOString(), version: "1.0.2" })]
     );
     await client.query("COMMIT");
     return admin.rows[0].id;

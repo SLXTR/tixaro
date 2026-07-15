@@ -1,0 +1,16 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      NGINX_ENVSUBST_FILTER: ^TIXARO_
+      TIXARO_SERVER_NAME: ${TIXARO_SERVER_NAME:-_}
+    ports:
+      - "${TIXARO_HTTP_BIND:-0.0.0.0}:${TIXARO_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./deploy/nginx-container.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      - tixaro_proxy

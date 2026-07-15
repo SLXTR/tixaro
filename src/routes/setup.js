@@ -4,8 +4,9 @@ import { setFlash } from "../security.js";
 import { setupTimeZones } from "../system-configuration.js";
 
 function requestBaseUrl(req, config) {
+  if (config.appBaseUrl) return config.appBaseUrl;
   const host = req.get("host");
-  return host ? `${req.protocol}://${host}` : config.appBaseUrl;
+  return host ? `${req.protocol}://${host}` : "http://localhost:3000";
 }
 
 function formValues(values) {

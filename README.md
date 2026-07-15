@@ -44,12 +44,12 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 
 ### 1. Voraussetzungen installieren
 
-Auf dem vServer werden Git, Docker mit Compose, Nginx und optional Certbot benötigt:
+Auf dem vServer werden nur Git und Docker mit Compose benötigt. Ein bereits laufender Nginx, Nginx Proxy Manager oder SWAG wird vom Installationsskript erkannt und weiterverwendet. Ist noch kein Nginx-basierter Reverse Proxy vorhanden, startet Tixaro einen eigenen schlanken Nginx-Container.
 
 ```bash
 sudo apt update
-sudo apt install -y git docker.io docker-compose-v2 nginx certbot python3-certbot-nginx
-sudo systemctl enable --now docker nginx
+sudo apt install -y git docker.io docker-compose-v2
+sudo systemctl enable --now docker
 ```
 
 Falls dein Anbieter ein minimales Ubuntu-Image verwendet, installiere Docker alternativ nach der offiziellen Docker-Anleitung für Ubuntu.
@@ -71,42 +71,103 @@ Das Repository ist öffentlich und kann ohne vorherige GitHub-Anmeldung geklont 
 sh install.sh
 ```
 
-Das Skript erzeugt die internen Datenbank-Zugangsdaten, baut die Container und startet Tixaro. Sitzungs- und Mail-Schlüssel werden beim ersten Containerstart automatisch erzeugt und dauerhaft im Volume `tixaro_data` gespeichert.
+Das Skript fragt zuerst, unter welcher vollständigen URL das Frontend erreichbar sein soll, zum Beispiel `https://tickets.deine-firma.de`. Diese Adresse wird für den Reverse Proxy, Links in E-Mails, den Einrichtungsassistenten und die abschließende Installationsmeldung verwendet.
 
-Öffne anschließend:
+Anschließend zeigt das Skript alle laufenden Container an und sucht nach einem vorhandenen Reverse Proxy:
+
+- Wird genau ein Proxy-Container erkannt, verbindet das Skript ihn mit dem gemeinsamen Docker-Netzwerk `tixaro_proxy`.
+- Werden mehrere Proxys erkannt, fragt das Skript, welcher verwendet werden soll.
+- Läuft Nginx direkt auf dem Linux-Host, wählt Tixaro automatisch einen freien lokalen Port und erzeugt `.tixaro/nginx-host.conf`.
+- Ist kein Proxy vorhanden, wird ein eigener Nginx-Container gestartet.
+
+Die Anwendung selbst veröffentlicht keinen festen Host-Port mehr. Dadurch kollidiert sie nicht mit Anwendungen, die bereits Port 3000 verwenden. Ein vorhandener Proxy erreicht Tixaro intern stabil unter `tixaro-app:3000`. Bei Nginx Proxy Manager wird dafür ein Proxy Host mit dem beim Installieren angegebenen Domainnamen, Forward Host `tixaro-app` und Forward Port `3000` angelegt.
+
+Öffne danach die vom Skript ausgegebene Adresse mit `/setup`. Der Assistent übernimmt die öffentliche URL bereits als Vorgabe und fragt Firmenname, Zeitzone, zentrale Queue, Standard-SLA und das erste Administratorkonto ab. Danach wird er dauerhaft gesperrt. Sitzungs- und Mail-Schlüssel werden beim ersten Containerstart automatisch erzeugt und dauerhaft im Volume `tixaro_data` gespeichert.
+
+Für eine unbeaufsichtigte Installation kann die URL vorgegeben werden:
 
 ```bash
-http://127.0.0.1:3000/setup
+TIXARO_URL=https://tickets.deine-firma.de sh install.sh
 ```
 
-Der Assistent fragt Firmenname, öffentliche URL, Zeitzone, zentrale Queue, Standard-SLA und das erste Administratorkonto ab. Danach wird er dauerhaft gesperrt. Optionale Werte wie Port, Kartenanbieter oder Update-Token können weiterhin in `.env` ergänzt werden; die Vorlage `.env.example` enthält alle Möglichkeiten.
+Bei mehreren erkannten Proxys kann zusätzlich `TIXARO_PROXY_CONTAINER=containername` gesetzt werden. Der gewählte Betriebsmodus wird gespeichert, damit ein von Tixaro selbst gestarteter Nginx bei Updates nicht mit einem fremden Proxy verwechselt wird. Alle dauerhaft verwendeten Werte stehen danach in `.env`; die Vorlage `.env.example` enthält weitere Optionen.
 
 ## Domain und HTTPS einrichten
 
-Lege zuerst einen DNS-A/AAAA-Eintrag deiner Domain auf den vServer. Danach:
+Lege zuerst einen DNS-A/AAAA-Eintrag deiner Domain auf den vServer. Bei Nginx Proxy Manager aktivierst du im zuvor angelegten Proxy Host anschließend unter **SSL** ein Zertifikat und **Force SSL**.
+
+Wenn Nginx direkt auf dem Host läuft, hat das Installationsskript bereits eine passende Konfiguration mit der gewählten URL und einem freien internen Port erzeugt:
 
 ```bash
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/tixaro
-sudo sed -i 's/tickets.example.com/tickets.deine-firma.de/g' /etc/nginx/sites-available/tixaro
+sudo apt install -y certbot python3-certbot-nginx
+sudo cp .tixaro/nginx-host.conf /etc/nginx/sites-available/tixaro
 sudo ln -s /etc/nginx/sites-available/tixaro /etc/nginx/sites-enabled/tixaro
 sudo nginx -t
 sudo systemctl reload nginx
 sudo certbot --nginx -d tickets.deine-firma.de
 ```
 
-Tixaro ist danach über `https://tickets.deine-firma.de` erreichbar. Port 3000 bleibt absichtlich nur an `127.0.0.1` gebunden.
+Passe im letzten Befehl nur den Domainnamen an. Die lokale Portfreigabe ist ausschließlich an `127.0.0.1` gebunden. Bestehende Proxy-Konfigurationen und Container werden vom Skript nicht überschrieben oder neu gestartet.
 
 ## Aktualisieren
 
 Bei einer direkten Git-Installation kann ein Administrator unter **Einstellungen → Systemupdate** das neueste veröffentlichte GitHub-Release prüfen und als Fast-Forward-Update installieren. Lokale Änderungen schützen die Installation vor einer automatischen Aktualisierung. Das Remote wird mit `TIXARO_UPDATE_REMOTE` festgelegt. Für private Repositorys kann ein GitHub-Token mit reinen Leserechten über `TIXARO_GITHUB_TOKEN` hinterlegt werden.
 
-Eine Docker-Installation wird weiterhin auf dem Host aktualisiert, da der Container weder das Git-Repository noch die Docker-Verwaltung des Hosts verändern darf:
+Eine Docker-Installation wird weiterhin auf dem Host aktualisiert, da der Container weder das Git-Repository noch die Docker-Verwaltung des Hosts verändern darf. Das Installationsskript behält die bereits hinterlegte URL und Proxy-Auswahl als Vorgabe bei:
 
 ```bash
 cd /opt/tixaro
 git pull --ff-only
-docker compose up -d --build
+sh install.sh
 docker image prune -f
+```
+
+## Vollständig deinstallieren
+
+> **Achtung:** Die folgenden Schritte löschen alle Tixaro-Tickets, Kunden, Benutzer, Einstellungen, Anhänge und internen Schlüssel unwiderruflich. Erstelle vorher ein Backup, falls Daten erhalten bleiben sollen.
+
+Lösche zuerst im verwendeten Reverse Proxy den für Tixaro angelegten Proxy Host beziehungsweise Server-Block samt Zertifikat. Andere Proxy Hosts bleiben bestehen.
+
+Wechsle zuerst in das Installationsverzeichnis und stoppe beide möglichen Compose-Varianten. Die vorhandene fremde Nginx- oder Proxy-Installation wird dabei nicht beendet:
+
+```bash
+cd /opt/tixaro
+docker compose -f docker-compose.yml -f docker-compose.nginx.yml down --volumes --remove-orphans
+```
+
+Falls ein vorhandener Proxy-Container bei der Installation angebunden wurde, trenne nur dessen Tixaro-Netzwerkverbindung. Die beiden Werte werden sicher aus `.env` gelesen, ohne die Datei als Shell-Code auszuführen:
+
+```bash
+proxy_container="$(sed -n 's/^TIXARO_PROXY_CONTAINER=//p' .env | tail -n 1)"
+proxy_network="$(sed -n 's/^TIXARO_PROXY_NETWORK=//p' .env | tail -n 1)"
+[ -n "$proxy_network" ] || proxy_network="tixaro_proxy"
+[ -z "$proxy_container" ] || docker network disconnect "$proxy_network" "$proxy_container"
+docker network rm "$proxy_network"
+```
+
+Wurde die erzeugte Host-Nginx-Konfiguration installiert, entferne ausschließlich diese Site und lade Nginx neu:
+
+```bash
+sudo rm -f /etc/nginx/sites-enabled/tixaro /etc/nginx/sites-available/tixaro /etc/nginx/conf.d/tixaro.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+Zum Schluss können das selbst gebaute Tixaro-Image und das Repository entfernt werden:
+
+```bash
+docker image rm tixaro-app 2>/dev/null || true
+cd /opt
+sudo rm -rf /opt/tixaro
+```
+
+Die gemeinsam nutzbaren Basis-Images für PostgreSQL und Nginx sowie Docker selbst bleiben absichtlich installiert, da andere Container sie verwenden können. Ob noch Tixaro-Reste vorhanden sind, lässt sich so prüfen:
+
+```bash
+docker ps -a --filter name=tixaro
+docker volume ls --filter name=tixaro
+docker network ls --filter name=tixaro
+docker image ls --filter reference='tixaro*'
 ```
 
 ## Backup und Wiederherstellung

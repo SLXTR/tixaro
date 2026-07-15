@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import bcrypt from "bcryptjs";
 import request from "supertest";
@@ -66,6 +67,29 @@ test("Updateprüfung wertet veröffentlichte GitHub-Releases aus", async () => {
   assert.equal(release.tagName, "v1.2.0");
 });
 
+test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Reverse Proxy", async () => {
+  const [compose, installer, nginxContainer, packageMetadata, readme] = await Promise.all([
+    readFile(new URL("../docker-compose.yml", import.meta.url), "utf8"),
+    readFile(new URL("../install.sh", import.meta.url), "utf8"),
+    readFile(new URL("../deploy/nginx-container.conf.template", import.meta.url), "utf8"),
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../README.md", import.meta.url), "utf8")
+  ]);
+
+  assert.doesNotMatch(compose, /127\.0\.0\.1:\$\{APP_PORT:-3000\}:3000/);
+  assert.match(compose, /APP_BASE_URL:/);
+  assert.match(compose, /external: true/);
+  assert.match(compose, /tixaro-app/);
+  assert.match(installer, /Unter welcher URL soll das Tixaro-Frontend erreichbar sein/);
+  assert.match(installer, /set_env_value APP_BASE_URL/);
+  assert.match(installer, /docker ps --format 'table/);
+  assert.match(installer, /docker network connect/);
+  assert.match(installer, /TIXARO_PROXY_CONTAINER/);
+  assert.match(nginxContainer, /proxy_pass http:\/\/tixaro-app:3000/);
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.2");
+  assert.match(readme, /Vollständig deinstallieren/);
+});
+
 test("Ersteinrichtung setzt alle zentralen Werte und sperrt sich danach", async () => {
   const setupConfig = loadConfig({
     nodeEnv: "test",
@@ -82,6 +106,7 @@ test("Ersteinrichtung setzt alle zentralen Werte und sperrt sich danach", async 
   await setupAgent.get("/login").expect(302).expect("Location", "/setup");
   let page = await setupAgent.get("/setup").expect(200);
   assert.match(page.text, /Service Desk startklar machen/);
+  assert.match(page.text, /value="http:\/\/localhost:3000"/);
   assert.match(page.text, /Zentrale Queue/);
   assert.match(page.text, /Administratorkonto/);
 
