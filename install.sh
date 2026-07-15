@@ -58,6 +58,89 @@ host_nginx_is_running() {
   return 1
 }
 
+run_as_root() {
+  if [ "$(id -u)" -eq 0 ]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+mark_host_updater_ready() {
+  attempt=1
+  while [ "$attempt" -le 10 ]; do
+    if docker compose exec -T app node -e 'require("node:fs").writeFileSync("/app/data/host-updater-ready", "ready\n", { mode: 0o600 })' >/dev/null 2>&1; then
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 1
+  done
+  return 1
+}
+
+install_host_updater() {
+  command -v systemctl >/dev/null 2>&1 || return 0
+  if systemctl is-enabled --quiet tixaro-update.timer 2>/dev/null && [ -x /usr/local/libexec/tixaro-update ]; then
+    mark_host_updater_ready || true
+    return 0
+  fi
+
+  enable_updates="${TIXARO_ENABLE_UI_UPDATES:-$(get_env_value TIXARO_ENABLE_UI_UPDATES)}"
+  if [ -z "$enable_updates" ] && [ -t 0 ]; then
+    printf 'Ein-Klick-Updates im Admin-Center aktivieren? [J/n]: '
+    IFS= read -r enable_updates
+    [ -n "$enable_updates" ] || enable_updates="yes"
+  fi
+  case "$enable_updates" in
+    yes|YES|Yes|ja|JA|Ja|j|J|1|true|TRUE) ;;
+    *) set_env_value TIXARO_ENABLE_UI_UPDATES no; return 0 ;;
+  esac
+
+  if [ "$(id -u)" -ne 0 ] && ! command -v sudo >/dev/null 2>&1; then
+    echo "Ein-Klick-Updates wurden nicht aktiviert, weil sudo fehlt."
+    return 0
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "Ein-Klick-Updates wurden nicht aktiviert, weil curl fehlt."
+    return 0
+  fi
+
+  install_dir="$(pwd -P)"
+  install_user="${SUDO_USER:-$(id -un)}"
+  if printf '%s' "$install_dir" | grep -Eq '[^A-Za-z0-9_./-]' || ! printf '%s' "$install_user" | grep -Eq '^[A-Za-z_][A-Za-z0-9_-]*$'; then
+    echo "Ein-Klick-Updates konnten für diesen Installationspfad nicht sicher eingerichtet werden."
+    return 0
+  fi
+
+  sed -e "s|__INSTALL_DIR__|${install_dir}|g" -e "s|__INSTALL_USER__|${install_user}|g" deploy/tixaro-update.service.template > "$generated_dir/tixaro-update.service"
+  if ! run_as_root install -d -m 0755 /usr/local/libexec; then
+    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
+    return 0
+  fi
+  if ! run_as_root install -m 0755 deploy/update-host.sh /usr/local/libexec/tixaro-update; then
+    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
+    return 0
+  fi
+  if ! run_as_root install -m 0644 "$generated_dir/tixaro-update.service" /etc/systemd/system/tixaro-update.service; then
+    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
+    return 0
+  fi
+  if ! run_as_root install -m 0644 deploy/tixaro-update.timer /etc/systemd/system/tixaro-update.timer; then
+    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
+    return 0
+  fi
+  if ! run_as_root systemctl daemon-reload || ! run_as_root systemctl enable --now tixaro-update.timer; then
+    echo "Ein-Klick-Updates konnten nicht aktiviert werden."
+    return 0
+  fi
+  set_env_value TIXARO_ENABLE_UI_UPDATES yes
+  if mark_host_updater_ready; then
+    echo "Ein-Klick-Updates wurden im Admin-Center aktiviert."
+  else
+    echo "Der Update-Helfer läuft, konnte aber noch nicht mit Tixaro verbunden werden."
+  fi
+}
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker wurde nicht gefunden. Installiere zuerst Docker mit Compose-Unterstützung."
   exit 1
@@ -117,9 +200,17 @@ if printf '%s' "$proxy_network" | grep -Eq '[^A-Za-z0-9_.-]'; then
   exit 1
 fi
 
+update_repository="${TIXARO_UPDATE_REPOSITORY:-$(get_env_value TIXARO_UPDATE_REPOSITORY)}"
+[ -n "$update_repository" ] || update_repository="SLXTR/tixaro"
+if ! printf '%s' "$update_repository" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'; then
+  echo "Das GitHub-Repository für Updates ist ungültig."
+  exit 1
+fi
+
 set_env_value APP_BASE_URL "$frontend_url"
 set_env_value TIXARO_PROXY_NETWORK "$proxy_network"
 set_env_value TIXARO_SERVER_NAME "$nginx_server_name"
+set_env_value TIXARO_UPDATE_REPOSITORY "$update_repository"
 
 if ! docker network inspect "$proxy_network" >/dev/null 2>&1; then
   docker network create "$proxy_network" >/dev/null
@@ -194,6 +285,7 @@ else
 fi
 
 set_env_value TIXARO_DEPLOYMENT_MODE "$deployment_mode"
+install_host_updater
 
 echo ""
 echo "Tixaro wurde gestartet."

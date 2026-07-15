@@ -30,7 +30,7 @@ const sectionMeta = {
   groups: { group: "Rechte & System", title: "Gruppen", description: "Teams, Gruppenrollen und Queue-Zugriffe zentral steuern.", action: "Gruppe anlegen" },
   appearance: { group: "Rechte & System", title: "Erscheinungsbild", description: "Firmenname, Logo und Farben an die eigene Marke anpassen." },
   system: { group: "Rechte & System", title: "System", description: "Öffentliche URL und lokale Zeitzone verwalten." },
-  updates: { group: "Rechte & System", title: "Systemupdate", description: "Tixaro sicher aus dem verbundenen GitHub-Repository aktualisieren." }
+  updates: { group: "Rechte & System", title: "Systemupdate", description: "Veröffentlichte Tixaro-Versionen prüfen und installieren." }
 };
 
 const sectionPermissions = {
@@ -287,7 +287,7 @@ export function settingsRouter({ pool, config }) {
       { group: "Rechte & System", title: "Gruppen", description: "Teams und Queue-Zugriffe", href: "/settings?section=groups", permission: "groups.manage" },
       { group: "Rechte & System", title: "Erscheinungsbild", description: "Logo und Farben", href: "/settings?section=appearance", permission: "appearance.manage" },
       { group: "Rechte & System", title: "System", description: "Öffentliche URL und Zeitzone", href: "/settings?section=system", permission: "settings.manage" },
-      { group: "Rechte & System", title: "Systemupdate", description: "Updates direkt aus GitHub", href: "/settings?section=updates", permission: "settings.manage" }
+      { group: "Rechte & System", title: "Systemupdate", description: "Neue Tixaro-Version installieren", href: "/settings?section=updates", permission: "settings.manage" }
     ].filter((module) => (!module.permission || hasPermission(req.user, module.permission)) && (!query || `${module.title} ${module.description} ${module.group}`.toLowerCase().includes(query.toLowerCase())));
 
     res.render("settings/index", {
@@ -411,15 +411,13 @@ export function settingsRouter({ pool, config }) {
   });
 
   router.post("/updates/install", async (req, res) => {
-    if (req.body.confirm_update !== "on") {
-      setFlash(req, "error", "Bestätige den Neustart, bevor das Update installiert wird.");
-      return redirectTo(res, "updates");
-    }
     try {
       const state = await installUpdate(config);
-      setFlash(req, "success", `Tixaro ${state.version} wurde aus GitHub installiert. Die Anwendung wird neu gestartet.`);
+      setFlash(req, "success", state.queued
+        ? `Tixaro ${state.lastCheck.version} wird im Hintergrund installiert. Die Anwendung startet danach automatisch neu.`
+        : `Tixaro ${state.version} wurde installiert. Die Anwendung wird neu gestartet.`);
       res.redirect("/settings?section=updates");
-      if (config.updateAutoRestart) setTimeout(() => process.exit(0), 1500);
+      if (state.restartRequired && config.updateAutoRestart) setTimeout(() => process.exit(0), 1500);
     } catch (error) {
       setFlash(req, "error", error.message || "Das Update konnte nicht installiert werden.");
       redirectTo(res, "updates");

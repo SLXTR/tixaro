@@ -1,0 +1,12 @@
+[Unit]
+Description=Tixaro-Update aus dem Admin-Center
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=__INSTALL_USER__
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=/usr/local/libexec/tixaro-update __INSTALL_DIR__
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full

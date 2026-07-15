@@ -98,32 +98,35 @@
 
 <% if (section === 'updates') { %>
   <section class="panel form-panel update-center-panel">
-    <div class="panel-header"><div><h2>GitHub-Releases</h2><p>Das Update-Center berücksichtigt ausschließlich veröffentlichte Releases.</p></div></div>
+    <div class="panel-header"><div><h2>Systemupdate</h2><p>Neue Tixaro-Versionen werden ausschließlich aus veröffentlichten GitHub-Releases installiert.</p></div></div>
     <% if (updateState?.enabled) { %>
       <dl class="update-facts">
-        <div><dt>Installierte Version</dt><dd><strong><%= updateState.version %></strong> · <%= updateState.commit %></dd></div>
-        <div><dt>GitHub-Repository</dt><dd><%= updateState.repository %></dd></div>
-        <div><dt>Installation</dt><dd>Git-Zweig <%= updateState.branch || 'ohne Zweig' %></dd></div>
+        <div><dt>Installiert</dt><dd><strong>Tixaro <%= updateState.version %></strong></dd></div>
+        <div><dt>Updatequelle</dt><dd>Offizielle GitHub-Releases</dd></div>
       </dl>
-      <form action="/settings/updates/check" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary" type="submit">Neuestes Release prüfen</button></form>
+      <form action="/settings/updates/check" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary" type="submit">Nach Update suchen</button></form>
       <% if (updateState.lastCheck) { %>
         <div class="update-result">
-          <strong><%= updateState.lastCheck.available ? `${updateState.lastCheck.name} ist verfügbar` : 'Aktuelles Release installiert' %></strong>
-          <p>Release <%= updateState.lastCheck.tagName %><% if (updateState.lastCheck.publishedAt) { %> · veröffentlicht <%= formatDateTime(updateState.lastCheck.publishedAt) %><% } %> · geprüft <%= formatDateTime(updateState.lastCheck.checkedAt) %></p>
+          <strong><%= updateState.lastCheck.available ? `${updateState.lastCheck.name} ist verfügbar` : 'Tixaro ist aktuell' %></strong>
+          <p>Version <%= updateState.lastCheck.version %><% if (updateState.lastCheck.publishedAt) { %> · veröffentlicht <%= formatDateTime(updateState.lastCheck.publishedAt) %><% } %></p>
           <% if (updateState.lastCheck.notes) { %><p class="update-release-notes"><%= updateState.lastCheck.notes %></p><% } %>
           <% if (!updateState.lastCheck.clean) { %><p class="form-error">Lokale Änderungen schützen diese Installation vor einem automatischen Update.</p><% } %>
         </div>
-        <% if (updateState.lastCheck.available && updateState.lastCheck.clean) { %>
-          <form class="stack-form update-install-form" action="/settings/updates/install" method="post">
+        <% if (updateState.lastCheck.available && updateState.lastCheck.clean && !['requested', 'running'].includes(updateState.hostStatus?.state)) { %>
+          <form class="update-install-form" action="/settings/updates/install" method="post">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <label class="check-label"><input type="checkbox" name="confirm_update" required><span>Release <%= updateState.lastCheck.tagName %> installieren und Tixaro danach neu starten</span></label>
-            <button class="button button-primary" type="submit">Release installieren</button>
+            <button class="button button-primary" type="submit">Update installieren</button>
           </form>
         <% } %>
       <% } %>
+      <% if (updateState.hostStatus?.state === 'requested' || updateState.hostStatus?.state === 'running') { %>
+        <div class="update-result"><strong>Update läuft</strong><p>Tixaro wird im Hintergrund aktualisiert und anschließend neu gestartet.</p></div>
+      <% } %>
+      <% if (updateState.hostStatus?.state === 'failed') { %>
+        <div class="form-error">Das letzte Update konnte nicht abgeschlossen werden. Prüfe auf dem Server den Dienst <code>tixaro-update</code>.</div>
+      <% } %>
     <% } else { %>
-      <div class="form-error"><%= updateState?.reason || 'Die GitHub-Updatequelle ist nicht verfügbar.' %></div>
-      <p>Für UI-Updates muss Tixaro als Git-Installation mit einem GitHub-Remote betrieben werden. Container-Installationen werden über das Container-Deployment aktualisiert.</p>
+      <div class="update-result"><strong>Ein-Klick-Updates aktivieren</strong><p>Führe auf dem Linux-Server einmal <code>sh install.sh</code> aus. Danach können Updates hier gestartet werden.</p></div>
     <% } %>
   </section>
 <% } %>

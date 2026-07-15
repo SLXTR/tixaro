@@ -48,11 +48,12 @@ Auf dem vServer werden nur Git und Docker mit Compose benötigt. Ein bereits lau
 
 ```bash
 sudo apt update
-sudo apt install -y git docker.io docker-compose-v2
+sudo apt install -y git curl docker.io docker-compose-v2
 sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"
 ```
 
-Falls dein Anbieter ein minimales Ubuntu-Image verwendet, installiere Docker alternativ nach der offiziellen Docker-Anleitung für Ubuntu.
+Melde dich danach einmal neu am Server an, damit die Docker-Gruppenberechtigung aktiv wird. Falls dein Anbieter ein minimales Ubuntu-Image verwendet, installiere Docker alternativ nach der offiziellen Docker-Anleitung für Ubuntu.
 
 ### 2. Repository laden
 
@@ -70,6 +71,8 @@ Das Repository ist öffentlich und kann ohne vorherige GitHub-Anmeldung geklont 
 ```bash
 sh install.sh
 ```
+
+Starte dieses Skript als normaler Installationsbenutzer und nicht mit `sudo`. Nur beim einmaligen Einrichten des Update-Helfers fragt das Skript gezielt nach der sudo-Freigabe.
 
 Das Skript fragt zuerst, unter welcher vollständigen URL das Frontend erreichbar sein soll, zum Beispiel `https://tickets.deine-firma.de`. Diese Adresse wird für den Reverse Proxy, Links in E-Mails, den Einrichtungsassistenten und die abschließende Installationsmeldung verwendet.
 
@@ -90,7 +93,9 @@ Für eine unbeaufsichtigte Installation kann die URL vorgegeben werden:
 TIXARO_URL=https://tickets.deine-firma.de sh install.sh
 ```
 
-Bei mehreren erkannten Proxys kann zusätzlich `TIXARO_PROXY_CONTAINER=containername` gesetzt werden. Der gewählte Betriebsmodus wird gespeichert, damit ein von Tixaro selbst gestarteter Nginx bei Updates nicht mit einem fremden Proxy verwechselt wird. Alle dauerhaft verwendeten Werte stehen danach in `.env`; die Vorlage `.env.example` enthält weitere Optionen.
+Bei mehreren erkannten Proxys kann zusätzlich `TIXARO_PROXY_CONTAINER=containername` gesetzt werden. Der gewählte Betriebsmodus wird gespeichert, damit ein von Tixaro selbst gestarteter Nginx bei Updates nicht mit einem fremden Proxy verwechselt wird.
+
+Zum Schluss kann das Skript Ein-Klick-Updates aktivieren. Dafür wird einmalig mit `sudo` ein eng begrenzter Systemdienst eingerichtet. Die Webanwendung selbst erhält weder Root-Rechte noch Zugriff auf den Docker-Socket. Alle dauerhaft verwendeten Werte stehen danach in `.env`; die Vorlage `.env.example` enthält weitere Optionen.
 
 ## Domain und HTTPS einrichten
 
@@ -111,9 +116,9 @@ Passe im letzten Befehl nur den Domainnamen an. Die lokale Portfreigabe ist auss
 
 ## Aktualisieren
 
-Bei einer direkten Git-Installation kann ein Administrator unter **Einstellungen → Systemupdate** das neueste veröffentlichte GitHub-Release prüfen und als Fast-Forward-Update installieren. Lokale Änderungen schützen die Installation vor einer automatischen Aktualisierung. Das Remote wird mit `TIXARO_UPDATE_REMOTE` festgelegt. Für private Repositorys kann ein GitHub-Token mit reinen Leserechten über `TIXARO_GITHUB_TOKEN` hinterlegt werden.
+Unter **Einstellungen → Systemupdate** kann ein Administrator nach einem veröffentlichten GitHub-Release suchen und es mit einem Klick installieren. Der Host-Helfer übernimmt ausschließlich den angeforderten Release-Tag, prüft Fast-Forward-Fähigkeit und Versionsnummer, baut die Container neu und startet Tixaro. Lokale Änderungen brechen den Vorgang zum Schutz der Installation ab.
 
-Eine Docker-Installation wird weiterhin auf dem Host aktualisiert, da der Container weder das Git-Repository noch die Docker-Verwaltung des Hosts verändern darf. Das Installationsskript behält die bereits hinterlegte URL und Proxy-Auswahl als Vorgabe bei:
+Der Button führt bewusst kein `sudo` im Container aus und klont keinen Quellcode in den laufenden Container. Der einmalig installierte Dienst läuft als normaler Installationsbenutzer und besitzt nur den festen Tixaro-Ablauf. Falls der Dienst nicht aktiviert wurde, kann weiterhin manuell aktualisiert werden:
 
 ```bash
 cd /opt/tixaro
@@ -122,11 +127,26 @@ sh install.sh
 docker image prune -f
 ```
 
+Der Dienststatus lässt sich auf dem Server prüfen:
+
+```bash
+systemctl status tixaro-update.timer
+journalctl -u tixaro-update.service
+```
+
 ## Vollständig deinstallieren
 
 > **Achtung:** Die folgenden Schritte löschen alle Tixaro-Tickets, Kunden, Benutzer, Einstellungen, Anhänge und internen Schlüssel unwiderruflich. Erstelle vorher ein Backup, falls Daten erhalten bleiben sollen.
 
 Lösche zuerst im verwendeten Reverse Proxy den für Tixaro angelegten Proxy Host beziehungsweise Server-Block samt Zertifikat. Andere Proxy Hosts bleiben bestehen.
+
+Deaktiviere anschließend den Update-Helfer und entferne nur dessen Tixaro-Dateien:
+
+```bash
+sudo systemctl disable --now tixaro-update.timer
+sudo rm -f /etc/systemd/system/tixaro-update.timer /etc/systemd/system/tixaro-update.service /usr/local/libexec/tixaro-update
+sudo systemctl daemon-reload
+```
 
 Wechsle zuerst in das Installationsverzeichnis und stoppe beide möglichen Compose-Varianten. Die vorhandene fremde Nginx- oder Proxy-Installation wird dabei nicht beendet:
 

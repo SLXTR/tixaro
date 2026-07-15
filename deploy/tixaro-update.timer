@@ -1,0 +1,11 @@
+[Unit]
+Description=Auf angeforderte Tixaro-Updates prüfen
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30s
+Unit=tixaro-update.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

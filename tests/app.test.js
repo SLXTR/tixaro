@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import bcrypt from "bcryptjs";
 import request from "supertest";
@@ -9,7 +11,7 @@ import { createDatabase, seedAdmin } from "../src/db.js";
 import { assignSystemRoleForLegacyRole } from "../src/access-control.js";
 import { searchAddresses } from "../src/address-search.js";
 import { ingestInboundMessage, sendTicketEmail } from "../src/mail-service.js";
-import { compareVersions, fetchLatestRelease } from "../src/system-update.js";
+import { compareVersions, fetchLatestRelease, installUpdate, updateOverview } from "../src/system-update.js";
 import { loadSystemConfiguration } from "../src/system-configuration.js";
 
 let pool;
@@ -67,11 +69,49 @@ test("Updateprüfung wertet veröffentlichte GitHub-Releases aus", async () => {
   assert.equal(release.tagName, "v1.2.0");
 });
 
+test("Container-Updates werden sicher an den Host-Helfer übergeben", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "tixaro-update-"));
+  const hostConfig = {
+    ...config,
+    updateMode: "host",
+    updateRepository: "SLXTR/tixaro",
+    updateReadyFile: path.join(directory, "ready"),
+    updateRequestFile: path.join(directory, "request.json"),
+    updateStatusFile: path.join(directory, "status.json")
+  };
+  try {
+    await writeFile(hostConfig.updateReadyFile, "ready\n");
+    const overview = await updateOverview(hostConfig);
+    assert.equal(overview.enabled, true);
+    assert.equal(overview.mode, "host");
+
+    const result = await installUpdate(hostConfig, {
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          tag_name: "v1.0.4",
+          name: "Tixaro 1.0.4",
+          body: "Sicheres Container-Update",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v1.0.4",
+          published_at: "2026-07-16T08:00:00Z"
+        })
+      })
+    });
+    assert.equal(result.queued, true);
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v1.0.4");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Reverse Proxy", async () => {
-  const [compose, installer, nginxContainer, packageMetadata, readme] = await Promise.all([
+  const [compose, installer, nginxContainer, updateHelper, packageMetadata, readme] = await Promise.all([
     readFile(new URL("../docker-compose.yml", import.meta.url), "utf8"),
     readFile(new URL("../install.sh", import.meta.url), "utf8"),
     readFile(new URL("../deploy/nginx-container.conf.template", import.meta.url), "utf8"),
+    readFile(new URL("../deploy/update-host.sh", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../README.md", import.meta.url), "utf8")
   ]);
@@ -86,7 +126,11 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(installer, /docker network connect/);
   assert.match(installer, /TIXARO_PROXY_CONTAINER/);
   assert.match(nginxContainer, /proxy_pass http:\/\/tixaro-app:3000/);
-  assert.equal(JSON.parse(packageMetadata).version, "1.0.2");
+  assert.match(installer, /tixaro-update\.timer/);
+  assert.match(updateHelper, /git merge --ff-only/);
+  assert.match(updateHelper, /releases\/latest/);
+  assert.doesNotMatch(updateHelper, /sudo/);
+  assert.equal(JSON.parse(packageMetadata).version, "1.0.3");
   assert.match(readme, /Vollständig deinstallieren/);
 });
 
@@ -414,9 +458,10 @@ test("Update-Center ist mit den GitHub-Releases verbunden", async () => {
     _csrf: csrfFrom(page.text), email: config.adminEmail, password: config.adminPassword
   }).expect(302);
   page = await agent.get("/settings?section=updates").expect(200);
-  assert.match(page.text, /GitHub-Releases/);
-  assert.match(page.text, /SLXTR\/tixaro/);
-  assert.match(page.text, /Neuestes Release prüfen/);
+  assert.match(page.text, /Systemupdate/);
+  assert.match(page.text, /Offizielle GitHub-Releases/);
+  assert.match(page.text, /Nach Update suchen/);
+  assert.doesNotMatch(page.text, /confirm_update/);
 });
 
 test("Farben werden per Farbwähler gespeichert und als Theme ausgeliefert", async () => {

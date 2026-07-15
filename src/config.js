@@ -43,6 +43,11 @@ export function loadConfig(overrides = {}) {
     adminEmail: (overrides.adminEmail ?? process.env.ADMIN_EMAIL ?? "admin@tixaro.local").toLowerCase(),
     adminPassword,
     updateRemote: overrides.updateRemote ?? process.env.TIXARO_UPDATE_REMOTE ?? "origin",
+    updateMode: overrides.updateMode ?? process.env.TIXARO_UPDATE_MODE ?? "auto",
+    updateRepository: overrides.updateRepository ?? process.env.TIXARO_UPDATE_REPOSITORY ?? "SLXTR/tixaro",
+    updateRequestFile: overrides.updateRequestFile ?? process.env.TIXARO_UPDATE_REQUEST_FILE ?? "/app/data/update-request.json",
+    updateStatusFile: overrides.updateStatusFile ?? process.env.TIXARO_UPDATE_STATUS_FILE ?? "/app/data/update-status.json",
+    updateReadyFile: overrides.updateReadyFile ?? process.env.TIXARO_UPDATE_READY_FILE ?? "/app/data/host-updater-ready",
     githubToken: overrides.githubToken ?? process.env.TIXARO_GITHUB_TOKEN ?? "",
     updateAutoRestart: overrides.updateAutoRestart ?? process.env.TIXARO_UPDATE_AUTO_RESTART !== "false",
     trustProxy: Number(overrides.trustProxy ?? process.env.TRUST_PROXY ?? (isProduction ? 1 : 0))

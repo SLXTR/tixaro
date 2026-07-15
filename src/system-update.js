@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { access, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -74,6 +74,20 @@ export async function fetchLatestRelease(repository, { githubToken = "", fetchIm
 
 async function localOverview(config) {
   const version = await currentVersion();
+  if (config.updateMode === "host") {
+    try {
+      await access(config.updateReadyFile);
+      const repository = /^[a-z0-9_.-]+\/[a-z0-9_.-]+$/i.test(config.updateRepository) ? config.updateRepository : null;
+      if (!repository) return { enabled: false, version, reason: "Die Updatequelle ist ungültig." };
+      let hostStatus = null;
+      try {
+        hostStatus = JSON.parse(await readFile(config.updateStatusFile, "utf8"));
+      } catch {}
+      return { enabled: true, mode: "host", version, repository, hostStatus, lastCheck };
+    } catch {
+      return { enabled: false, mode: "host", version, reason: "Automatische Updates sind auf diesem Server noch nicht aktiviert." };
+    }
+  }
   if (!/^[a-z0-9._-]+$/i.test(config.updateRemote)) {
     return { enabled: false, version, reason: "Die konfigurierte GitHub-Updatequelle ist ungültig." };
   }
@@ -85,7 +99,7 @@ async function localOverview(config) {
     ]);
     const repository = githubRepository(remoteUrl);
     if (!repository) return { enabled: false, version, reason: "Das konfigurierte Remote ist kein GitHub-Repository." };
-    return { enabled: true, version, repository, branch, commit, lastCheck };
+    return { enabled: true, mode: "git", version, repository, branch, commit, lastCheck };
   } catch {
     return { enabled: false, version, reason: "Diese Installation ist nicht mit einem GitHub-Repository verbunden." };
   }
@@ -98,10 +112,8 @@ export async function updateOverview(config) {
 export async function checkForUpdate(config, { fetchImpl = globalThis.fetch } = {}) {
   const overview = await localOverview(config);
   if (!overview.enabled) throw new Error(overview.reason);
-  const [release, status] = await Promise.all([
-    fetchLatestRelease(overview.repository, { githubToken: config.githubToken, fetchImpl }),
-    run("git", ["status", "--porcelain"])
-  ]);
+  const release = await fetchLatestRelease(overview.repository, { githubToken: config.githubToken, fetchImpl });
+  const status = overview.mode === "git" ? await run("git", ["status", "--porcelain"]) : "";
   lastCheck = {
     checkedAt: new Date(),
     available: compareVersions(release.version, overview.version) > 0,
@@ -120,13 +132,25 @@ async function installDependencies(config) {
   }
 }
 
-export async function installUpdate(config) {
+export async function installUpdate(config, { fetchImpl = globalThis.fetch } = {}) {
   if (installing) throw new Error("Ein Update wird bereits installiert.");
   installing = true;
   try {
-    const state = await checkForUpdate(config);
+    const state = await checkForUpdate(config, { fetchImpl });
     if (!state.lastCheck.clean) throw new Error("Die Installation enthält lokale Änderungen. Das Update wurde zum Schutz dieser Änderungen abgebrochen.");
     if (!state.lastCheck.available) throw new Error("Es ist kein neueres Release verfügbar.");
+    if (state.mode === "host") {
+      const request = {
+        tagName: state.lastCheck.tagName,
+        version: state.lastCheck.version,
+        requestedAt: new Date().toISOString()
+      };
+      const temporaryFile = `${config.updateRequestFile}.tmp`;
+      await writeFile(temporaryFile, JSON.stringify(request), { encoding: "utf8", mode: 0o600 });
+      await rename(temporaryFile, config.updateRequestFile);
+      await writeFile(config.updateStatusFile, JSON.stringify({ state: "requested", tagName: request.tagName, updatedAt: request.requestedAt }), { encoding: "utf8", mode: 0o600 });
+      return { ...state, queued: true };
+    }
     await run("git", ["fetch", "--quiet", "--tags", "--prune", config.updateRemote], 180_000);
     const tagRef = `refs/tags/${state.lastCheck.tagName}^{commit}`;
     try {
@@ -141,7 +165,7 @@ export async function installUpdate(config) {
     await installDependencies(config);
     const installed = await localOverview(config);
     lastCheck = { ...state.lastCheck, available: false, installedAt: new Date(), version: installed.version };
-    return { ...installed, lastCheck };
+    return { ...installed, lastCheck, restartRequired: true };
   } finally {
     installing = false;
   }

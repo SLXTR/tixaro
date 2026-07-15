@@ -21,7 +21,7 @@ jobs:
       - run: npm test
       - name: Installationsskripte und Compose-Dateien prüfen
         run: |
-          sh -n install.sh docker-entrypoint.sh
+          sh -n install.sh docker-entrypoint.sh deploy/update-host.sh
           POSTGRES_PASSWORD=test APP_BASE_URL=https://tickets.example.com TIXARO_PROXY_NETWORK=tixaro_proxy docker compose config >/dev/null
           POSTGRES_PASSWORD=test APP_BASE_URL=https://tickets.example.com TIXARO_PROXY_NETWORK=tixaro_proxy APP_PORT=3000 docker compose -f docker-compose.yml -f docker-compose.host-nginx.yml config >/dev/null
           POSTGRES_PASSWORD=test APP_BASE_URL=https://tickets.example.com TIXARO_PROXY_NETWORK=tixaro_proxy TIXARO_HTTP_PORT=8080 docker compose -f docker-compose.yml -f docker-compose.nginx.yml config >/dev/null

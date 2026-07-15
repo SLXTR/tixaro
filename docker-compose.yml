@@ -27,6 +27,8 @@ services:
       PORT: 3000
       TRUST_PROXY: ${TRUST_PROXY:-1}
       APP_BASE_URL: "${APP_BASE_URL:?APP_BASE_URL fehlt - starte sh install.sh}"
+      TIXARO_UPDATE_MODE: host
+      TIXARO_UPDATE_REPOSITORY: ${TIXARO_UPDATE_REPOSITORY:-SLXTR/tixaro}
       DATABASE_URL: "postgresql://tixaro:${POSTGRES_PASSWORD}@db:5432/tixaro"
     expose:
       - "3000"
