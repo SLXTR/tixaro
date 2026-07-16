@@ -1,19 +1,17 @@
 <% const connectionMode = mailChannel.connectionMode || (isNew ? 'graph' : 'custom'); %>
 <section class="mail-wizard-step">
-  <span class="mail-step-number">1</span>
-  <div class="mail-step-content"><div class="mail-step-heading"><strong>Postfach</strong><small>Name, Adresse und Ziel für neue Tickets</small></div>
+  <div class="mail-step-content"><div class="mail-step-heading"><strong>Postfach</strong></div>
     <div class="mail-field-grid">
       <label>Name<input name="name" value="<%= mailChannel.name || '' %>" minlength="2" maxlength="120" placeholder="z. B. Support" required></label>
       <label>E-Mail-Adresse<input type="email" name="email_address" value="<%= mailChannel.email_address || '' %>" placeholder="support@example.com" required></label>
       <label>Ziel-Queue<select name="queue_id"><option value="">Erste aktive Queue</option><% queueOptions.filter(item => item.active).forEach(queue => { %><option value="<%= queue.id %>" <%= String(mailChannel.queue_id || '') === String(queue.id) ? 'selected' : '' %>><%= queue.name %></option><% }) %></select></label>
-      <label class="mail-active-option"><input type="checkbox" name="active" <%= isNew || mailChannel.active ? 'checked' : '' %>><span><strong>Kanal aktiv</strong><small>Nach erfolgreicher Einrichtung automatisch verwenden</small></span></label>
+      <label class="mail-active-option"><input type="checkbox" name="active" <%= isNew || mailChannel.active ? 'checked' : '' %>><span><strong>Aktiv</strong></span></label>
     </div>
   </div>
 </section>
 
 <section class="mail-wizard-step">
-  <span class="mail-step-number">2</span>
-  <div class="mail-step-content"><div class="mail-step-heading"><strong>Wie ist das Postfach angebunden?</strong><small>Wähle den passenden Anbieter – <%= companyName %> setzt die technischen Werte automatisch.</small></div>
+  <div class="mail-step-content"><div class="mail-step-heading"><strong>Anbindung</strong></div>
     <div class="mail-mode-grid" data-mail-mode-grid>
       <label><input type="radio" name="connection_mode" value="graph" <%= connectionMode === 'graph' ? 'checked' : '' %>><span class="mail-mode-icon">M</span><span><strong>Microsoft 365</strong><small>Shared Mailbox über Graph</small><b>Empfohlen</b></span></label>
       <label><input type="radio" name="connection_mode" value="imap_smtp" <%= connectionMode === 'imap_smtp' ? 'checked' : '' %>><span class="mail-mode-icon">@</span><span><strong>Klassisches Postfach</strong><small>Empfangen per IMAP, senden per SMTP</small></span></label>
@@ -25,8 +23,7 @@
 </section>
 
 <section class="mail-wizard-step">
-  <span class="mail-step-number">3</span>
-  <div class="mail-step-content"><div class="mail-step-heading"><strong>Zugangsdaten</strong><small data-mail-credential-help>App-Daten der Microsoft-365-Registrierung</small></div>
+  <div class="mail-step-content"><div class="mail-step-heading"><strong>Zugangsdaten</strong></div>
     <div class="mail-graph-fields" data-mail-graph>
       <div class="mail-info-banner"><span>i</span><p><strong>Microsoft Graph für Shared Mailboxes</strong>Du brauchst Tenant-ID, Client-ID und ein Client-Secret. Die Mailbox-Adresse wird aus Schritt 1 übernommen.</p></div>
       <div class="mail-field-grid">

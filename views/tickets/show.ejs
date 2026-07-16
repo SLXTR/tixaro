@@ -17,7 +17,7 @@
         <button class="button button-primary" type="submit">Ticket übernehmen</button>
       </form>
     <% } %>
-    <a class="button button-secondary" href="/tickets">← Zur Liste</a>
+    <a class="button button-secondary" href="/tickets">Zurück</a>
   </div>
 </div>
 
@@ -40,7 +40,7 @@
     <% if (can('tickets.worklog')) { %>
       <section class="panel worklog-panel">
         <div class="panel-header">
-          <div><h2>Leistungsdokumentation</h2></div>
+          <div><h2>Zeiterfassung</h2></div>
           <span class="worklog-total"><strong><%= formatTicks(ticket.billed_ticks) %></strong><small><%= formatMinutes(ticket.billed_ticks * 15) %></small></span>
         </div>
         <form class="worklog-form" action="/tickets/<%= ticket.id %>/work-log" method="post">
@@ -58,7 +58,7 @@
             <label>Takte
               <select name="ticks"><% tickOptions.forEach(tick => { %><option value="<%= tick %>"><%= tick %> <%= tick === 1 ? 'Takt' : 'Takte' %> · <%= tick * 15 %> Min.</option><% }) %></select>
             </label>
-            <button class="button button-primary" type="submit">Arbeitsnachweis speichern</button>
+            <button class="button button-primary" type="submit">Erfassen</button>
           </div>
         </form>
         <% if (workLogs.length) { %>
@@ -76,7 +76,7 @@
     <% } %>
     <% if (can('tickets.comment')) { %><form class="reply-box" action="/tickets/<%= ticket.id %>/comments" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="reply-title"><div><strong>Antwort hinzufügen</strong><small>Öffentliche Antworten stoppen die Erstreaktionszeit.</small></div></div>
+      <div class="reply-title"><div><strong>Antwort</strong></div></div>
       <% if (can('tickets.internal')) { %>
         <div class="reply-tools">
           <label>Antwortvorlage
@@ -94,14 +94,14 @@
             <label class="check-label"><input type="checkbox" name="is_internal"><span>Interne Notiz</span></label>
           </div>
         <% } else { %><span></span><% } %>
-        <button class="button button-primary" type="submit">Antwort speichern</button>
+        <button class="button button-primary" type="submit">Senden</button>
       </div>
     </form><% } %>
   </div>
 
   <aside class="ticket-sidebar">
     <section class="panel sla-panel">
-      <div class="panel-header"><div><h2>SLA & Eskalation</h2><p><%= slaLabel(ticket.sla || 'standard') %>-Servicelevel</p></div></div>
+      <div class="panel-header"><div><h2>SLA</h2><p><%= slaLabel(ticket.sla || 'standard') %></p></div></div>
       <% const responseState = slaState(ticket, 'response'); %>
       <% const resolutionState = slaState(ticket, 'resolution'); %>
       <div class="sla-row sla-row-<%= responseState %>">
@@ -116,19 +116,17 @@
     <% if (can('tickets.manage')) { %>
       <form class="panel side-form" action="/tickets/<%= ticket.id %>/update" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="panel-header"><div><h2>Ticket steuern</h2></div></div>
+        <div class="panel-header"><div><h2>Bearbeiten</h2></div></div>
         <label>Status<select name="status"><% ['open','in_progress','waiting','resolved','closed'].forEach(value => { %><option value="<%= value %>" <%= ticket.status === value ? 'selected' : '' %>><%= statusLabel(value) %></option><% }) %></select></label>
-        <label>Priorität<select name="priority"><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= ticket.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label>
-        <label>Zuständig<select name="assignee_id"><option value="">Nicht zugewiesen</option><% agents.forEach(agent => { %><option value="<%= agent.id %>" <%= ticket.assignee_id === agent.id ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
-        <label>Queue<select name="category"><% queues.forEach(value => { %><option value="<%= value %>" <%= ticket.category === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
-        <label>Typ<select name="ticket_type"><% ticketTypes.forEach(value => { %><option value="<%= value %>" <%= ticket.ticket_type === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
-        <label>SLA<select name="sla"><% slaOptions.forEach(option => { %><option value="<%= option.value %>" <%= (ticket.sla || 'standard') === option.value ? 'selected' : '' %>><%= option.label %> · <%= option.responseMinutes / 60 %>h / <%= option.resolutionMinutes / 60 %>h</option><% }) %></select></label>
-        <label>Wiedervorlage<input type="datetime-local" name="due_at" value="<%= formatDateTimeInput(ticket.due_at) %>"><small>Für den Status „Warten auf Rückmeldung“.</small></label>
-        <button class="button button-primary button-full" type="submit">Änderungen speichern</button>
+        <label>Bearbeiter<select name="assignee_id"><option value="">Nicht zugewiesen</option><% agents.forEach(agent => { %><option value="<%= agent.id %>" <%= ticket.assignee_id === agent.id ? 'selected' : '' %>><%= agent.name %></option><% }) %></select></label>
+        <details class="form-disclosure"><summary>Weitere Angaben</summary><div class="stack-form">
+          <label>Priorität<select name="priority"><% ['low','normal','high','urgent'].forEach(value => { %><option value="<%= value %>" <%= ticket.priority === value ? 'selected' : '' %>><%= priorityLabel(value) %></option><% }) %></select></label><label>Queue<select name="category"><% queues.forEach(value => { %><option value="<%= value %>" <%= ticket.category === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label><label>Ticketart<select name="ticket_type"><% ticketTypes.forEach(value => { %><option value="<%= value %>" <%= ticket.ticket_type === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label><label>SLA<select name="sla"><% slaOptions.forEach(option => { %><option value="<%= option.value %>" <%= (ticket.sla || 'standard') === option.value ? 'selected' : '' %>><%= option.label %> · <%= option.responseMinutes / 60 %> h / <%= option.resolutionMinutes / 60 %> h</option><% }) %></select></label><label>Wiedervorlage<input type="datetime-local" name="due_at" value="<%= formatDateTimeInput(ticket.due_at) %>"></label>
+        </div></details>
+        <button class="button button-primary button-full" type="submit">Speichern</button>
       </form>
     <% } %>
     <section class="panel ticket-assets-panel">
-      <div class="panel-header"><div><h2>Geräte & Ressourcen</h2><p><%= ticket.requester_name %> zugeordnet</p></div><% if (assets.some(asset => asset.is_linked)) { %><span class="resource-count"><%= assets.filter(asset => asset.is_linked).length %></span><% } %></div>
+      <div class="panel-header"><div><h2>Ressourcen</h2><p><%= ticket.requester_name %></p></div></div>
       <% if (assets.length) { %>
         <div class="ticket-asset-list">
           <% assets.forEach(asset => { %>

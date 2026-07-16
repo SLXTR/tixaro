@@ -1,6 +1,6 @@
 <% layout('layout') -%>
 <header class="workbench-heading dashboard-heading">
-  <div><h1>Übersicht</h1><p>Willkommen, <%= currentUser.name.split(' ')[0] %>.</p></div>
+  <div><h1>Übersicht</h1></div>
 </header>
 
 <section class="stat-grid" aria-label="Ticket-Kennzahlen">
@@ -12,7 +12,7 @@
 
 <div class="dashboard-grid">
   <section class="panel panel-wide">
-    <div class="panel-header"><div><h2>Aktuelle Tickets</h2></div><a href="/tickets">Alle anzeigen</a></div>
+    <div class="panel-header"><div><h2>Aktuelle Tickets</h2></div><a href="/tickets">Alle Tickets</a></div>
     <%- include('partials/ticket-table', { tickets }) %>
   </section>
   <aside class="panel">

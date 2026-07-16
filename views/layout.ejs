@@ -46,7 +46,6 @@
           <% if (can('tickets.view_own') || can('tickets.view_all') || hasQueueAccess) { %><a class="nav-link <%= currentPath.startsWith('/tickets') && currentPath !== '/tickets/new' ? 'is-active' : '' %>" href="/tickets">
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14"/></svg><span>Tickets</span>
           </a><% } %>
-          <span class="nav-section">Beziehungen</span>
           <% if (can('customers.view')) { %>
             <a class="nav-link <%= currentPath.startsWith('/customers') ? 'is-active' : '' %>" href="/customers">
               <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM15.5 10a2.5 2.5 0 1 0 0-5M3 19c0-3.1 2.5-5 5.5-5s5.5 1.9 5.5 5M14 14c3.2 0 6 1.6 6 5"/></svg><span>Kunden</span>
@@ -56,7 +55,6 @@
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H4zM9 20h6M12 16v4"/></svg><span>Ressourcen</span>
           </a><% } %>
           <% if (can('users.manage') || can('settings.manage') || can('roles.manage') || can('groups.manage') || can('appearance.manage')) { %>
-            <span class="nav-section">Verwaltung</span>
             <% if (can('users.manage')) { %><a class="nav-link <%= currentPath.startsWith('/users') ? 'is-active' : '' %>" href="/users">
               <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 20c0-3.5 3.1-5.5 7-5.5s7 2 7 5.5"/></svg><span>Benutzer</span>
             </a><% } %>
@@ -75,7 +73,7 @@
             </summary>
             <div class="user-menu-popover">
               <div class="user-menu-heading"><strong><%= currentUser.name %></strong><small><%= currentUser.email %></small></div>
-              <a class="user-menu-action" href="/account"><span>Eigene Einstellungen</span><b>→</b></a>
+              <a class="user-menu-action" href="/account"><span>Konto</span><b>→</b></a>
               <form action="/logout" method="post">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="user-menu-action user-menu-logout" type="submit"><span>Abmelden</span><b>↗</b></button>
@@ -88,9 +86,6 @@
       <div class="main-column">
         <header class="topbar">
           <button class="menu-button" type="button" data-sidebar-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Navigation öffnen">Menü</button>
-          <div class="topbar-context">
-            <strong><%= title %></strong>
-          </div>
           <% if (can('tickets.view_own') || can('tickets.view_all') || hasQueueAccess) { %>
             <form class="global-search" action="/tickets" method="get" role="search">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>

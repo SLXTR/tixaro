@@ -38,7 +38,7 @@ Tixaro ist ein deutschsprachiger Service Desk. Die Arbeitsweise orientiert sich 
 - Schutz der Mailanbindung vor Verbindungen zu Loopback-, Link-Local- und Metadaten-Adressen
 - Persistente Farbanpassung über sieben Farbwähler für Akzent, Flächen, Sekundärfarbe und Navigation
 - Frei anpassbarer Firmenname und eigenes Logo im ursprünglichen Seitenverhältnis; Tixaro bleibt als Standard erhalten
-- Aufgeräumtes Admin-Center mit vier klar gegliederten Bereichen und schneller Einstellungssuche
+- Übersichtliche Einstellungen mit klaren Bereichen und schneller Suche
 - Einmaliger Einrichtungsassistent für Firma, URL, Zeitzone, Queue, SLA und Administratorkonto
 - Persistente PostgreSQL-Datenbank, Healthchecks und automatischer Neustart
 - GitHub Actions für automatische Tests
@@ -119,7 +119,7 @@ Passe im letzten Befehl nur den Domainnamen an. Die lokale Portfreigabe ist auss
 
 ## Aktualisieren
 
-Unter **Einstellungen → Systemupdate** kann ein Administrator nach einem veröffentlichten GitHub-Release suchen und es mit einem Klick installieren. Der Host-Helfer übernimmt ausschließlich den angeforderten Release-Tag, prüft Fast-Forward-Fähigkeit und Versionsnummer, baut die Container neu und startet Tixaro. Lokale Änderungen brechen den Vorgang zum Schutz der Installation ab. Nach dem Containerwechsel wartet das Skript auf den erfolgreichen Healthcheck und lädt einen verwendeten Nginx-Container kontrolliert neu, damit dessen Upstream nicht auf der alten Container-IP stehen bleibt. Bei Host-Nginx und beim mitgelieferten Nginx bleibt der einmal gewählte lokale Port bei späteren Updates unverändert, sodass die aktive Proxy-Konfiguration weiterhin auf dasselbe Ziel zeigt.
+Unter **Einstellungen → Updates** kann ein Administrator nach einem veröffentlichten GitHub-Release suchen und es mit einem Klick installieren. Der Host-Helfer übernimmt ausschließlich den angeforderten Release-Tag, prüft Fast-Forward-Fähigkeit und Versionsnummer, baut die Container neu und startet Tixaro. Lokale Änderungen brechen den Vorgang zum Schutz der Installation ab. Nach dem Containerwechsel wartet das Skript auf den erfolgreichen Healthcheck und lädt einen verwendeten Nginx-Container kontrolliert neu, damit dessen Upstream nicht auf der alten Container-IP stehen bleibt. Bei Host-Nginx und beim mitgelieferten Nginx bleibt der einmal gewählte lokale Port bei späteren Updates unverändert, sodass die aktive Proxy-Konfiguration weiterhin auf dasselbe Ziel zeigt.
 
 Installationen bis einschließlich Version 1.0.5 aktualisieren den Systemdienst einmalig manuell. Führe dazu als ursprünglicher Installationsbenutzer im Tixaro-Verzeichnis `git pull --ff-only` und anschließend `sh install.sh` aus. Ab Version 1.0.6 wird der Helfer direkt aus der Installation gestartet und bei künftigen Releases automatisch mitaktualisiert.
 
@@ -141,7 +141,7 @@ systemctl status tixaro-update.timer
 journalctl -u tixaro-update.service
 ```
 
-Bei einem GitHub-API-Limit oder einem privaten Repository kann in `.env` optional `TIXARO_GITHUB_TOKEN` gesetzt werden. Der Host-Helfer liest den Token über eine geschützte temporäre Curl-Konfiguration ein, damit er nicht in der Prozessliste erscheint. Fehlgeschlagene Anforderungen werden einmalig verarbeitet; die konkrete Ursache steht anschließend im Admin-Center und im Systemprotokoll. Der Systemdienst führt den Helfer direkt aus der geprüften Tixaro-Installation aus, damit zukünftige Releases keine veraltete Kopie unter `/usr/local` zurücklassen.
+Bei einem GitHub-API-Limit oder einem privaten Repository kann in `.env` optional `TIXARO_GITHUB_TOKEN` gesetzt werden. Der Host-Helfer liest den Token über eine geschützte temporäre Curl-Konfiguration ein, damit er nicht in der Prozessliste erscheint. Fehlgeschlagene Anforderungen werden einmalig verarbeitet; die konkrete Ursache steht anschließend unter Updates und im Systemprotokoll. Der Systemdienst führt den Helfer direkt aus der geprüften Tixaro-Installation aus, damit zukünftige Releases keine veraltete Kopie unter `/usr/local` zurücklassen.
 
 ## Vollständig deinstallieren
 

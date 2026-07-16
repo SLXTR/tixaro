@@ -3,17 +3,10 @@
   <div>
     <div class="ticket-kicker"><a href="/customers">CRM</a><span>/</span><strong><%= customer.customer_number %></strong></div>
     <h1><%= customer.name %></h1>
-    <div class="ticket-heading-meta"><span class="status-pill status-<%= customer.status %>"><%= customerStatusLabel(customer.status) %></span><span><%= customer.domain ? `@${customer.domain}` : 'Domain noch nicht hinterlegt' %></span><span><%= customer.industry || 'Branche nicht hinterlegt' %></span><span><%= customer.city || 'Kein Standort' %></span></div>
+    <div class="ticket-heading-meta"><span class="status-pill status-<%= customer.status %>"><%= customerStatusLabel(customer.status) %></span><span><%= customer.domain ? `@${customer.domain}` : 'Keine Domain' %></span><% if (customer.city) { %><span><%= customer.city %></span><% } %></div>
   </div>
-  <div class="ticket-heading-actions"><a class="button button-primary" href="/tickets/new">Ticket erstellen</a><a class="button button-secondary" href="/customers">← Kundenstamm</a></div>
+  <div class="ticket-heading-actions"><a class="button button-primary" href="/tickets/new">Ticket erstellen</a><a class="button button-secondary" href="/customers">Zurück</a></div>
 </div>
-
-<section class="crm-metric-grid" aria-label="Kundenübersicht">
-  <div class="mini-metric"><small>Zugeordnete Benutzer</small><strong><%= contacts.length %></strong><span>aktive Ansprechpartner</span></div>
-  <div class="mini-metric"><small>Ressourcen</small><strong><%= assets.length %></strong><span>Geräte und Verträge</span></div>
-  <div class="mini-metric"><small>Tickets</small><strong><%= tickets.length %></strong><span>letzte Vorgänge</span></div>
-  <div class="mini-metric"><small>Offene Tickets</small><strong><%= tickets.filter(ticket => !['resolved','closed'].includes(ticket.status)).length %></strong><span>aktuell in Bearbeitung</span></div>
-</section>
 
 <div class="customer-detail-grid">
   <div class="customer-main-column">
@@ -33,15 +26,13 @@
     <% } %>
 
     <section class="panel" id="contacts">
-      <div class="panel-header"><div><h2>Benutzer & Ansprechpartner</h2></div></div>
+      <div class="panel-header"><div><h2>Kontakte</h2></div></div>
       <% if (contacts.length) { %>
         <div class="contact-list">
           <% contacts.forEach(contact => { %>
             <article class="contact-row">
               <span class="avatar avatar-soft"><%= initials(contact.name) %></span>
               <div class="contact-identity"><strong><%= contact.name %></strong><span><%= contact.job_title || contact.department || roleLabel(contact.role) %> · <%= contact.email %></span></div>
-              <div class="contact-count"><strong><%= contact.asset_count %></strong><span>Ressourcen</span></div>
-              <div class="contact-count"><strong><%= contact.ticket_count %></strong><span>Tickets</span></div>
               <span class="contact-state <%= contact.active ? 'is-active' : '' %>"><%= contact.active ? 'Aktiv' : 'Inaktiv' %></span>
             </article>
           <% }) %>
@@ -75,46 +66,42 @@
   <aside class="customer-side-column">
     <form class="panel form-panel" action="/customers/<%= customer.id %>/update" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="panel-header"><div><h2>Stammdaten</h2></div></div>
+      <div class="panel-header"><div><h2>Kundendaten</h2></div></div>
       <label>Firmenname<input type="text" name="name" value="<%= customer.name %>" required></label>
-      <label>Branche<input type="text" name="industry" value="<%= customer.industry || '' %>"></label>
-      <label>Firmendomain<input type="text" name="domain" value="<%= customer.domain || '' %>" placeholder="beispiel.de" inputmode="url" required><small>Die Domain ist eindeutig und steuert die automatische Zuordnung.</small></label>
-      <label>Telefon<input type="tel" name="phone" value="<%= customer.phone || '' %>"></label>
-      <label>Website<input type="url" name="website" value="<%= customer.website || '' %>" placeholder="https://"></label>
-      <div class="address-autocomplete" data-address-autocomplete>
-        <label>Adresse<input type="text" name="address" value="<%= customer.address || '' %>" autocomplete="street-address" data-address-input></label>
-        <input type="hidden" name="latitude" value="<%= customer.latitude || '' %>" data-latitude-input>
-        <input type="hidden" name="longitude" value="<%= customer.longitude || '' %>" data-longitude-input>
-        <div class="address-suggestion-list" role="listbox" data-address-results hidden></div>
-        <small>Vorschlag auswählen, damit der Kartenstandort aktualisiert wird.</small>
-      </div>
-      <label>Ort<input type="text" name="city" value="<%= customer.city || '' %>" autocomplete="address-level2" data-city-input></label>
+      <label>Domain<input type="text" name="domain" value="<%= customer.domain || '' %>" placeholder="beispiel.de" inputmode="url" required><small>Wird für die automatische Benutzerzuordnung verwendet.</small></label>
       <label>Status<select name="status"><% customerStatuses.forEach(value => { %><option value="<%= value %>" <%= customer.status === value ? 'selected' : '' %>><%= customerStatusLabel(value) %></option><% }) %></select></label>
-      <label>Interne Notizen<textarea name="notes" rows="4"><%= customer.notes || '' %></textarea></label>
-      <button class="button button-primary button-full" type="submit">Stammdaten speichern</button>
+      <details class="form-disclosure"><summary>Kontakt und Adresse</summary><div class="stack-form">
+        <label>Branche<input type="text" name="industry" value="<%= customer.industry || '' %>"></label>
+        <label>Telefon<input type="tel" name="phone" value="<%= customer.phone || '' %>"></label>
+        <label>Website<input type="url" name="website" value="<%= customer.website || '' %>" placeholder="https://"></label>
+        <div class="address-autocomplete" data-address-autocomplete>
+          <label>Adresse<input type="text" name="address" value="<%= customer.address || '' %>" autocomplete="street-address" data-address-input></label>
+          <input type="hidden" name="latitude" value="<%= customer.latitude || '' %>" data-latitude-input><input type="hidden" name="longitude" value="<%= customer.longitude || '' %>" data-longitude-input>
+          <div class="address-suggestion-list" role="listbox" data-address-results hidden></div>
+        </div>
+        <label>Ort<input type="text" name="city" value="<%= customer.city || '' %>" autocomplete="address-level2" data-city-input></label>
+        <label>Notizen<textarea name="notes" rows="4"><%= customer.notes || '' %></textarea></label>
+      </div></details>
+      <button class="button button-primary button-full" type="submit">Speichern</button>
     </form>
 
     <% if (can('customers.manage') && assignableContacts.length) { %>
       <form class="panel form-panel" action="/customers/<%= customer.id %>/contacts/assign" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="panel-header"><div><h2>Bestehenden Benutzer zuordnen</h2></div></div>
+        <div class="panel-header"><div><h2>Benutzer zuordnen</h2></div></div>
         <label>Benutzer<select name="user_id" required><option value="">Bitte auswählen</option><% assignableContacts.forEach(contact => { %><option value="<%= contact.id %>"><%= contact.name %> · <%= contact.email %><%= contact.current_customer_name ? ` · bisher ${contact.current_customer_name}` : '' %></option><% }) %></select></label>
-        <small>Die bisherige Kundenzuordnung wird ersetzt. Das Benutzerkonto und seine Tickets bleiben erhalten.</small>
-        <button class="button button-secondary button-full" type="submit">Kundenbenutzer zuordnen</button>
+        <button class="button button-secondary button-full" type="submit">Zuordnen</button>
       </form>
     <% } %>
 
     <form class="panel form-panel" action="/customers/<%= customer.id %>/contacts" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <div class="panel-header"><div><h2>Kundenbenutzer anlegen</h2></div></div>
+      <div class="panel-header"><div><h2>Kontakt anlegen</h2></div></div>
       <div class="form-grid"><label>Vorname<input type="text" name="first_name" minlength="2" required></label><label>Nachname<input type="text" name="last_name" minlength="2" required></label></div>
       <label>E-Mail<input type="email" name="email" required></label>
-      <label>Position<input type="text" name="job_title"></label>
-      <label>Abteilung<input type="text" name="department"></label>
-      <label>Telefon<input type="tel" name="phone"></label>
-      <label>Standort<input type="text" name="site"></label>
-      <label>Startpasswort<input type="password" name="password" minlength="10" autocomplete="new-password" required><small>Mindestens 10 Zeichen; sicher an den Kontakt übermitteln.</small></label>
-      <button class="button button-secondary button-full" type="submit">Kundenbenutzer anlegen</button>
+      <label>Startpasswort<input type="password" name="password" minlength="10" autocomplete="new-password" required><small>Mindestens 10 Zeichen</small></label>
+      <details class="form-disclosure"><summary>Weitere Angaben</summary><div class="stack-form"><label>Position<input type="text" name="job_title"></label><label>Abteilung<input type="text" name="department"></label><label>Telefon<input type="tel" name="phone"></label><label>Standort<input type="text" name="site"></label></div></details>
+      <button class="button button-secondary button-full" type="submit">Anlegen</button>
     </form>
   </aside>
 </div>

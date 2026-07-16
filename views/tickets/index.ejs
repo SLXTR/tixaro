@@ -1,8 +1,8 @@
 <% layout('layout') -%>
 <% if (currentUser.role === 'requester') { %>
 <header class="workbench-heading portal-list-heading">
-  <div><p class="eyebrow">Kundenportal</p><h1>Meine Anfragen</h1><p>Behalte den aktuellen Stand im Blick oder ergänze eine bestehende Anfrage.</p></div>
-  <a class="button button-primary" href="/tickets/new">Neue Anfrage stellen</a>
+  <div><h1>Meine Anfragen</h1></div>
+  <a class="button button-primary" href="/tickets/new">Neue Anfrage</a>
 </header>
 <section class="panel portal-ticket-panel">
   <form class="filter-bar portal-ticket-filter" action="/tickets" method="get">
@@ -22,7 +22,6 @@
 <header class="workbench-heading">
   <div>
     <h1>Tickets</h1>
-    <p>Alle Vorgänge und Queues.</p>
   </div>
 </header>
 
@@ -53,7 +52,6 @@
       <div>
         <h2><%= filters.queue || (filters.mine ? 'Mein Arbeitskorb' : filters.escalated ? 'Eskalationen' : 'Alle Tickets') %></h2>
       </div>
-      <span class="result-badge"><%= tickets.length %> Tickets</span>
     </div>
     <form class="filter-bar ticket-filter-bar" action="/tickets" method="get">
       <% if (filters.mine) { %><input type="hidden" name="mine" value="1"><% } %>

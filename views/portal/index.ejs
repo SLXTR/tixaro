@@ -1,19 +1,17 @@
 <% layout('layout') -%>
 <section class="portal-hero">
   <div class="portal-hero-copy">
-    <span class="portal-kicker">Willkommen im <%= companyName %> Kundenportal</span>
-    <h1>Hallo <%= currentUser.name.split(' ')[0] %>, wie können wir helfen?</h1>
-    <p>Hier findest du deine Anfragen, Geräte und den aktuellen Bearbeitungsstand an einem Ort.</p>
-    <div class="portal-hero-actions"><a class="button portal-primary-action" href="/tickets/new">Neue Anfrage stellen</a><a class="button portal-secondary-action" href="/tickets">Meine Anfragen</a></div>
+    <h1>Hallo <%= currentUser.name.split(' ')[0] %></h1>
+    <div class="portal-hero-actions"><a class="button portal-primary-action" href="/tickets/new">Neue Anfrage</a><a class="button portal-secondary-action" href="/tickets">Meine Anfragen</a></div>
   </div>
   <div class="portal-hero-mark"><img src="/brand-logo" alt=""><span><%= companyName %></span></div>
 </section>
 
 <section class="portal-stat-grid" aria-label="Meine Übersicht">
-  <a href="/tickets?status=open"><span>Offene Anfragen</span><strong><%= stats.active %></strong><small>werden gerade bearbeitet</small></a>
-  <a href="/tickets?status=waiting"><span>Rückfrage offen</span><strong><%= stats.waiting %></strong><small>wartet auf eine Rückmeldung</small></a>
-  <a href="/tickets?status=resolved"><span>Erledigt</span><strong><%= stats.completed %></strong><small>abgeschlossene Anfragen</small></a>
-  <a href="/assets"><span>Meine Geräte</span><strong><%= stats.assets %></strong><small>dir aktuell zugeordnet</small></a>
+  <a href="/tickets?status=open"><span>Offen</span><strong><%= stats.active %></strong></a>
+  <a href="/tickets?status=waiting"><span>Rückfrage</span><strong><%= stats.waiting %></strong></a>
+  <a href="/tickets?status=resolved"><span>Erledigt</span><strong><%= stats.completed %></strong></a>
+  <a href="/assets"><span>Geräte</span><strong><%= stats.assets %></strong></a>
 </section>
 
 <div class="portal-grid">
@@ -36,7 +34,7 @@
 
     <section class="panel portal-contact-card">
       <span class="portal-contact-icon">?</span>
-      <div><small>Dein Unternehmen</small><strong><%= profile?.customer_name || 'Noch nicht zugeordnet' %></strong><p><%= profile?.department || profile?.site || 'Bei Fragen helfen wir dir gern weiter.' %></p></div>
+      <div><small>Unternehmen</small><strong><%= profile?.customer_name || 'Nicht zugeordnet' %></strong><% if (profile?.department || profile?.site) { %><p><%= profile?.department || profile?.site %></p><% } %></div>
       <a href="/tickets/new">Support kontaktieren</a>
     </section>
   </aside>

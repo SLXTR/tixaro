@@ -1418,3 +1418,88 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); box-sha
   .config-open, .config-default { display: none; }
   .login-card { padding-block: 24px; }
 }
+
+/* Reduzierte Informationsarchitektur */
+.topbar { justify-content: flex-end; }
+.menu-button { margin-right: auto; }
+.global-search { margin-left: auto; margin-right: 0; }
+.page-heading { padding-bottom: 0; border-bottom: 0; }
+.workbench-heading { margin-bottom: 24px; }
+.panel-header p { max-width: 680px; }
+.empty-state > span, .compact-empty > span { display: none; }
+
+.settings-body .main-content { width: min(1480px, 100%); }
+.settings-shell { width: 100%; }
+.settings-page-header { display: flex; min-height: 72px; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.settings-page-header h1 { margin: 4px 0 0; }
+.settings-page-header p { margin: 6px 0 0; color: var(--muted); }
+.settings-back { color: var(--muted); font-size: var(--font-sm); font-weight: 650; }
+.settings-back:hover { color: var(--ink-strong); }
+.settings-search { position: relative; width: min(620px, 100%); margin-bottom: 30px; }
+.settings-search span { position: absolute; top: 50%; left: 14px; color: var(--muted); transform: translateY(-50%); }
+.settings-search input { padding-left: 42px; background: var(--surface); }
+.settings-group { margin-top: 30px; }
+.settings-group:first-of-type { margin-top: 0; }
+.settings-group > h2 { margin-bottom: 10px; font-size: var(--font-base); }
+.settings-group .admin-module-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings-group .admin-module-card,
+.settings-body .settings-group .admin-module-card,
+.settings-body .settings-group .admin-module-card:last-child:nth-child(odd) { min-height: 70px; padding: 14px 16px; }
+.settings-group .admin-module-card:nth-child(odd) { border-right: 1px solid var(--line-soft); }
+.settings-group .admin-module-card > span:first-child strong { font-size: var(--font-base); }
+.settings-group .admin-module-card > span:first-child small { margin-top: 1px; font-size: var(--font-sm); }
+
+.config-panel > .config-list { border-top: 0; }
+.config-item summary,
+.config-item-compact summary,
+.mail-config-item summary { grid-template-columns: minmax(0, 1fr) auto; min-height: 66px; gap: 16px; padding: 14px 17px; }
+.config-default, .config-code, .config-state { display: none !important; }
+.config-body, .settings-body .config-body { padding: 20px; }
+.config-form-actions > span, .mail-form-actions > span { display: none; }
+.config-create .panel-header { min-height: 58px; }
+.system-role-info small { max-width: 760px; }
+
+.form-disclosure { margin-top: 4px; border-top: 1px solid var(--line); }
+.form-disclosure > summary { position: relative; padding: 14px 24px 14px 0; color: var(--ink-strong); font-size: var(--font-base); font-weight: 650; cursor: pointer; list-style: none; }
+.form-disclosure > summary::-webkit-details-marker { display: none; }
+.form-disclosure > summary::after { position: absolute; top: 50%; right: 3px; content: "+"; color: var(--muted); font-size: 20px; font-weight: 400; transform: translateY(-50%); }
+.form-disclosure[open] > summary::after { content: "−"; }
+.form-disclosure > .form-grid,
+.form-disclosure > .stack-form { padding: 4px 0 18px; }
+.side-form .form-disclosure { margin-top: 12px; }
+.side-form .form-disclosure > summary { font-size: var(--font-sm); }
+.reduced-form { display: grid; width: min(900px, 100%); gap: 18px; padding: 24px; }
+.reduced-form-actions { display: flex; justify-content: flex-end; padding-top: 4px; }
+
+.customer-card { min-height: 84px; align-items: center; }
+.contact-row { grid-template-columns: auto minmax(180px, 1fr) auto; }
+.asset-row-large { grid-template-columns: auto minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(170px, 1fr) auto auto; }
+.portal-request-actions { justify-content: flex-end; }
+.portal-request-actions > .button { margin-left: auto; }
+.portal-stat-grid a { min-height: 112px; }
+.portal-stat-grid a small { display: none; }
+.mail-wizard-step { grid-template-columns: minmax(0, 1fr); }
+.mail-step-content { width: 100%; }
+.profile-card dl { margin-top: 18px; }
+
+@media (max-width: 1024px) {
+  .settings-page-header { align-items: stretch; flex-direction: column; }
+  .settings-page-header .button { width: 100%; }
+}
+
+@media (max-width: 720px) {
+  .settings-group .admin-module-list { grid-template-columns: 1fr; }
+  .settings-group .admin-module-card,
+  .settings-body .settings-group .admin-module-card,
+  .settings-body .settings-group .admin-module-card:last-child:nth-child(odd) { grid-template-columns: minmax(0, 1fr) auto; }
+  .settings-group .admin-module-card:nth-child(odd) { border-right: 0; }
+  .settings-page-header { margin-bottom: 20px; }
+  .settings-search { margin-bottom: 24px; }
+  .reduced-form { padding: 18px 16px; }
+  .reduced-form-actions .button { width: 100%; }
+  .config-item summary, .config-item-compact summary, .mail-config-item summary { grid-template-columns: minmax(0, 1fr); }
+  .config-open { display: none; }
+  .contact-row { grid-template-columns: 40px minmax(0, 1fr); }
+  .contact-row .contact-state { grid-column: 2; }
+  .asset-row-large { grid-template-columns: auto minmax(0, 1fr) auto; }
+}

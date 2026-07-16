@@ -14,10 +14,10 @@ export const permissionDefinitions = [
   ["assets.manage", "Ressourcen verwalten", "Inventar anlegen, zuordnen und bearbeiten", "CRM & Ressourcen", 120],
   ["users.manage", "Benutzer verwalten", "Konten anlegen, bearbeiten, aktivieren und deaktivieren", "Administration", 130],
   ["users.grant_admin", "Administratoren ernennen", "Administratorkonten anlegen, ändern und deaktivieren", "Administration", 135],
-  ["settings.manage", "Systemeinstellungen", "Queues, Nummernkreise, Vorlagen, Updates und Stammdaten verwalten", "Administration", 140],
+  ["settings.manage", "Systemeinstellungen", "Queues, Nummern, Vorlagen, Updates und Stammdaten verwalten", "Administration", 140],
   ["roles.manage", "Rollen verwalten", "Rollen und deren Berechtigungen konfigurieren", "Administration", 150],
   ["groups.manage", "Gruppen verwalten", "Mitgliedschaften, Rollen und Queue-Zugriffe konfigurieren", "Administration", 160],
-  ["appearance.manage", "Erscheinungsbild", "Firmenname, Logo und Farben anpassen", "Administration", 170]
+  ["appearance.manage", "Darstellung", "Firmenname, Logo und Farben anpassen", "Administration", 170]
 ];
 
 const systemRoles = [

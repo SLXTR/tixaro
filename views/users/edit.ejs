@@ -1,27 +1,27 @@
 <% layout('layout') -%>
 <header class="workbench-heading">
-  <div><h1>Benutzer bearbeiten</h1><p><%= editedUser.name %> · <%= editedUser.email %></p></div>
+  <div><h1><%= editedUser.name %></h1><p><%= editedUser.email %></p></div>
   <div class="workbench-actions">
     <% if (can('users.grant_admin') && editedUser.role === 'requester' && editedUser.active) { %>
       <form action="/users/<%= editedUser.id %>/preview" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="button button-secondary" type="submit">Portal als Benutzer ansehen</button></form>
     <% } %>
-    <a class="button button-secondary" href="/users">Abbrechen</a>
+    <a class="button button-secondary" href="/users">Zurück</a>
   </div>
 </header>
 
 <section class="panel form-panel user-edit-panel">
-  <div class="panel-header"><div><h2>Kontodaten</h2><% if (editedUser.customer_name) { %><p>Zugeordnet zu <%= editedUser.customer_name %></p><% } %></div></div>
+  <div class="panel-header"><div><h2>Konto</h2><% if (editedUser.customer_name) { %><p><%= editedUser.customer_name %></p><% } %></div></div>
   <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
   <form class="stack-form" action="/users/<%= editedUser.id %>/update" method="post">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="form-grid">
       <label>Vorname<input name="first_name" value="<%= values.first_name || '' %>" minlength="2" maxlength="80" required autofocus></label>
       <label>Nachname<input name="last_name" value="<%= values.last_name || '' %>" minlength="2" maxlength="80" required></label>
-      <label>E-Mail-Adresse<input type="email" name="email" value="<%= values.email || '' %>" required></label>
+      <label>E-Mail<input type="email" name="email" value="<%= values.email || '' %>" required></label>
       <label>Rolle<select name="role" <%= editedUser.id === currentUser.id ? 'disabled' : '' %>><% roles.forEach(role => { %><option value="<%= role %>" <%= values.role === role ? 'selected' : '' %>><%= roleLabel(role) %></option><% }) %></select><% if (editedUser.id === currentUser.id) { %><small>Die eigene Rolle kann hier nicht geändert werden.</small><input type="hidden" name="role" value="<%= editedUser.role %>"><% } %></label>
-      <label class="field-full">Kundenzuordnung <small>für alle Rollen</small><select name="customer_id"><option value="">Automatisch über E-Mail-Domain</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id || '') === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · @<%= customer.domain %></option><% }) %></select><small>Die Auswahl ordnet Kundenbenutzer, Agenten und Administratoren unabhängig von ihrer E-Mail-Domain zu.</small></label>
-      <label class="field-full">Neues Passwort <small>optional</small><input type="password" name="password" minlength="10" autocomplete="new-password"><small>Leer lassen, um das bestehende Passwort beizubehalten.</small></label>
+      <label class="field-full">Kunde<select name="customer_id"><option value="">Über E-Mail-Domain zuordnen</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id || '') === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · @<%= customer.domain %></option><% }) %></select></label>
+      <label class="field-full">Neues Passwort <small>optional</small><input type="password" name="password" minlength="10" autocomplete="new-password"></label>
     </div>
-    <div><button class="button button-primary" type="submit">Änderungen speichern</button></div>
+    <div><button class="button button-primary" type="submit">Speichern</button></div>
   </form>
 </section>

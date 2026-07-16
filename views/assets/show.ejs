@@ -5,14 +5,14 @@
     <h1><%= asset.name %></h1>
     <div class="ticket-heading-meta"><span class="asset-status asset-status-<%= asset.status %>"><%= assetStatusLabel(asset.status) %></span><span><%= asset.asset_type %></span><span><%= asset.manufacturer || '' %> <%= asset.model || '' %></span></div>
   </div>
-  <div class="ticket-heading-actions"><a class="button button-primary" href="/tickets/new">Ticket erstellen</a><a class="button button-secondary" href="/assets">← Ressourcen</a></div>
+  <div class="ticket-heading-actions"><a class="button button-primary" href="/tickets/new">Ticket erstellen</a><a class="button button-secondary" href="/assets">Zurück</a></div>
 </div>
 
 <div class="asset-detail-grid">
   <div class="asset-main-column">
     <section class="asset-hero panel">
       <div class="asset-hero-icon"><%= asset.asset_type === 'Notebook' ? 'NB' : asset.asset_type === 'Computer' ? 'PC' : asset.asset_type === 'Smartphone' ? 'SP' : 'IT' %></div>
-      <div class="asset-hero-copy"><p class="eyebrow"><%= asset.asset_type %></p><h2><%= asset.manufacturer || 'Unbekannter Hersteller' %> <%= asset.model || '' %></h2><p><%= asset.serial_number ? `Seriennummer ${asset.serial_number}` : 'Keine Seriennummer hinterlegt' %></p></div>
+      <div class="asset-hero-copy"><h2><%= asset.manufacturer || asset.asset_type %> <%= asset.model || '' %></h2><% if (asset.serial_number) { %><p>Seriennummer <%= asset.serial_number %></p><% } %></div>
       <dl>
         <div><dt>Kunde</dt><dd><%= asset.customer_name || 'Nicht zugeordnet' %></dd></div>
         <div><dt>Kundenbenutzer</dt><dd><%= asset.assigned_user_name || 'Nicht zugewiesen' %></dd></div>
@@ -36,7 +36,7 @@
 
     <% if (can('assets.manage')) { %>
       <section class="panel">
-        <div class="panel-header"><div><p class="panel-kicker">Revisionsverlauf</p><h2>Zuordnungshistorie</h2><p>Kunde, Benutzer, Standort und Status im zeitlichen Verlauf.</p></div><% if (can('statistics.view')) { %><a href="/statistics#bestand">Stichtag prüfen</a><% } %></div>
+        <div class="panel-header"><div><h2>Zuordnungen</h2></div><% if (can('statistics.view')) { %><a href="/statistics#bestand">Stichtag prüfen</a><% } %></div>
         <% if (assignmentHistory.length) { %>
           <div class="assignment-timeline">
             <% assignmentHistory.forEach((entry, index) => { %>
@@ -71,20 +71,12 @@
         <label>Typ<select name="asset_type"><% assetTypes.forEach(value => { %><option value="<%= value %>" <%= asset.asset_type === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
         <label>Status<select name="status"><% assetStatuses.forEach(value => { %><option value="<%= value %>" <%= asset.status === value ? 'selected' : '' %>><%= assetStatusLabel(value) %></option><% }) %></select></label>
         <label>Kunde<select name="customer_id" data-customer-select><option value="">Kein Kunde</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= asset.customer_id === customer.id ? 'selected' : '' %>><%= customer.name %></option><% }) %></select></label>
-        <label>Kundenbenutzer<select name="assigned_user_id" data-contact-select><option value="">Nicht zugewiesen</option><% contacts.forEach(contact => { %><option value="<%= contact.id %>" data-customer-id="<%= contact.customer_id %>" <%= asset.assigned_user_id === contact.id ? 'selected' : '' %>><%= contact.name %> · <%= contact.customer_name %></option><% }) %></select></label>
-        <label>Hersteller<input type="text" name="manufacturer" value="<%= asset.manufacturer || '' %>"></label>
-        <label>Modell<input type="text" name="model" value="<%= asset.model || '' %>"></label>
-        <label>Seriennummer<input type="text" name="serial_number" value="<%= asset.serial_number || '' %>"></label>
-        <label>Betriebssystem<input type="text" name="operating_system" value="<%= asset.operating_system || '' %>"></label>
-        <label>CPU<input type="text" name="cpu" value="<%= asset.attributes?.cpu || '' %>"></label>
-        <label>Arbeitsspeicher<input type="text" name="memory" value="<%= asset.attributes?.memory || '' %>"></label>
-        <label>IP-Adresse<input type="text" name="ip_address" value="<%= asset.attributes?.ip_address || '' %>"></label>
-        <label>MAC-Adresse<input type="text" name="mac_address" value="<%= asset.attributes?.mac_address || '' %>"></label>
-        <label>Standort<input type="text" name="location" value="<%= asset.location || '' %>"></label>
-        <label>Kaufdatum<input type="date" name="purchase_date" value="<%= asset.purchase_date ? new Date(asset.purchase_date).toISOString().slice(0,10) : '' %>"></label>
-        <label>Garantie bis<input type="date" name="warranty_until" value="<%= asset.warranty_until ? new Date(asset.warranty_until).toISOString().slice(0,10) : '' %>"></label>
-        <label>Notizen<textarea name="notes" rows="4"><%= asset.notes || '' %></textarea></label>
-        <button class="button button-primary button-full" type="submit">Ressource aktualisieren</button>
+        <label>Benutzer<select name="assigned_user_id" data-contact-select><option value="">Nicht zugewiesen</option><% contacts.forEach(contact => { %><option value="<%= contact.id %>" data-customer-id="<%= contact.customer_id %>" <%= asset.assigned_user_id === contact.id ? 'selected' : '' %>><%= contact.name %> · <%= contact.customer_name %></option><% }) %></select></label>
+        <details class="form-disclosure"><summary>Technische Daten</summary><div class="stack-form">
+          <label>Hersteller<input type="text" name="manufacturer" value="<%= asset.manufacturer || '' %>"></label><label>Modell<input type="text" name="model" value="<%= asset.model || '' %>"></label><label>Seriennummer<input type="text" name="serial_number" value="<%= asset.serial_number || '' %>"></label><label>Betriebssystem<input type="text" name="operating_system" value="<%= asset.operating_system || '' %>"></label><label>CPU<input type="text" name="cpu" value="<%= asset.attributes?.cpu || '' %>"></label><label>Arbeitsspeicher<input type="text" name="memory" value="<%= asset.attributes?.memory || '' %>"></label><label>IP-Adresse<input type="text" name="ip_address" value="<%= asset.attributes?.ip_address || '' %>"></label><label>MAC-Adresse<input type="text" name="mac_address" value="<%= asset.attributes?.mac_address || '' %>"></label>
+        </div></details>
+        <details class="form-disclosure"><summary>Weitere Angaben</summary><div class="stack-form"><label>Standort<input type="text" name="location" value="<%= asset.location || '' %>"></label><label>Kaufdatum<input type="date" name="purchase_date" value="<%= asset.purchase_date ? new Date(asset.purchase_date).toISOString().slice(0,10) : '' %>"></label><label>Garantie bis<input type="date" name="warranty_until" value="<%= asset.warranty_until ? new Date(asset.warranty_until).toISOString().slice(0,10) : '' %>"></label><label>Notizen<textarea name="notes" rows="4"><%= asset.notes || '' %></textarea></label></div></details>
+        <button class="button button-primary button-full" type="submit">Speichern</button>
       </form>
     </aside>
   <% } %>

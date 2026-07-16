@@ -91,16 +91,16 @@ test("Container-Updates werden sicher an den Host-Helfer übergeben", async () =
         ok: true,
         status: 200,
         json: async () => ({
-          tag_name: "v2.0.1",
-          name: "Tixaro 2.0.1",
+          tag_name: "v2.2.0",
+          name: "Tixaro 2.2.0",
           body: "Sicheres Container-Update",
-          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v2.0.1",
+          html_url: "https://github.com/SLXTR/tixaro/releases/tag/v2.2.0",
           published_at: "2026-07-16T08:00:00Z"
         })
       })
     });
     assert.equal(result.queued, true);
-    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v2.0.1");
+    assert.equal(JSON.parse(await readFile(hostConfig.updateRequestFile, "utf8")).tagName, "v2.2.0");
     assert.equal(JSON.parse(await readFile(hostConfig.updateStatusFile, "utf8")).state, "requested");
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -156,7 +156,7 @@ test("Docker-Installation nutzt eine abgefragte URL und einen vorhandenen Revers
   assert.match(compose, /TIXARO_GITHUB_TOKEN:/);
   assert.match(settingsView, /updateState\.hostStatus\.message/);
   assert.doesNotMatch(updateHelper, /sudo/);
-  assert.equal(JSON.parse(packageMetadata).version, "2.0.0");
+  assert.equal(JSON.parse(packageMetadata).version, "2.1.0");
   assert.match(readme, /Vollständig deinstallieren/);
   assert.match(stylesheet, /--font-xs: 15px/);
   assert.match(stylesheet, /body \{[^}]*font: 18px\/1\.55/);
@@ -184,7 +184,7 @@ test("Ersteinrichtung setzt alle zentralen Werte und sperrt sich danach", async 
 
   await setupAgent.get("/login").expect(302).expect("Location", "/setup");
   let page = await setupAgent.get("/setup").expect(200);
-  assert.match(page.text, /Service Desk startklar machen/);
+  assert.match(page.text, /<h1>Einrichtung<\/h1>/);
   assert.match(page.text, /value="http:\/\/localhost:3000"/);
   assert.match(page.text, /Zentrale Queue/);
   assert.match(page.text, /Administratorkonto/);
@@ -300,7 +300,7 @@ test("Administration verwaltet Queues, SLA-Zeiten und Ressourcenarten systemweit
   }).expect(302);
 
   page = await agent.get("/settings?section=sla").expect(200);
-  assert.match(page.text, /Admin-Center/);
+  assert.match(page.text, /Einstellungen/);
   const overview = await agent.get("/settings?q=Queue").expect(200);
   assert.match(overview.text, /Suchergebnisse für „Queue“/);
   assert.match(overview.text, /Queues/);
@@ -375,7 +375,7 @@ test("Agenten wählen den Ticketkanal und Administratoren konfigurieren Nummernk
   assert.equal(phoneTicket.rows[0].channel, "phone_inbound");
 
   page = await agent.get("/settings?section=numbers").expect(200);
-  assert.match(page.text, /Nummernkreise/);
+  assert.match(page.text, /Nummern/);
   await agent.post("/settings/numbers").type("form").send({
     _csrf: csrfFrom(page.text), ticket_format: "tix_sequence", customer_format: "knd_year_sequence"
   }).expect(302).expect("Location", "/settings?section=numbers");
@@ -440,7 +440,7 @@ test("Administratoren können das Kundenportal sicher als Benutzer ansehen", asy
   }).expect(302);
 
   page = await agent.get("/users").expect(200);
-  assert.match(page.text, /Eigene Einstellungen/);
+  assert.match(page.text, />Konto</);
   await agent.post("/users").type("form").send({
     _csrf: csrfFrom(page.text), first_name: "Petra", last_name: "Portalvorschau",
     email: "petra.portalvorschau@example.com", role: "requester", password: "PortalPreview123!"
@@ -493,7 +493,7 @@ test("Update-Center ist mit den GitHub-Releases verbunden", async () => {
     _csrf: csrfFrom(page.text), email: config.adminEmail, password: config.adminPassword
   }).expect(302);
   page = await agent.get("/settings?section=updates").expect(200);
-  assert.match(page.text, /Systemupdate/);
+  assert.match(page.text, /Updates/);
   assert.match(page.text, /Offizielle GitHub-Releases/);
   assert.match(page.text, /Nach Update suchen/);
   assert.doesNotMatch(page.text, /confirm_update/);
@@ -572,7 +572,7 @@ test("Rollen und Gruppen kombinieren Rechte mit Queue-Zugriffen", async () => {
   await assignSystemRoleForLegacyRole(pool, member.rows[0].id, "requester");
 
   page = await admin.get("/settings?section=roles").expect(200);
-  assert.match(page.text, /Geschützte Systemrolle/);
+  assert.match(page.text, /Systemrolle/);
   await admin.post("/settings/roles").type("form").send({
     _csrf: csrfFrom(page.text), name: "Queue-Bearbeitung", description: "Bearbeitet ausschließlich freigegebene Queues"
   }).expect(302);
@@ -841,7 +841,7 @@ test("Kundenbenutzer werden über eindeutige Firmendomains automatisch zugeordne
   const manualUser = await pool.query("SELECT id FROM users WHERE email = 'manuell@ohne-matching.test'");
   const manualCustomer = await pool.query("SELECT id FROM customers WHERE name = 'Eindeutige Domain GmbH'");
   page = await agent.get(`/customers/${manualCustomer.rows[0].id}`).expect(200);
-  assert.match(page.text, /Bestehenden Benutzer zuordnen/);
+  assert.match(page.text, /Benutzer zuordnen/);
   await agent.post(`/customers/${manualCustomer.rows[0].id}/contacts/assign`).type("form").send({
     _csrf: csrfFrom(page.text), user_id: manualUser.rows[0].id
   }).expect(302);
@@ -1054,7 +1054,7 @@ test("Kundenkarte und Ressourcenhistorie liefern Standort und Zuordnung zum Stic
   assert.equal(history.rows[0].location, "Berlin Hauptbüro");
 
   page = await agent.get(assetPath).expect(200);
-  assert.match(page.text, /Zuordnungshistorie/);
+  assert.match(page.text, /Zuordnungen/);
   await agent.post(`${assetPath}/update`).type("form").send({
     _csrf: csrfFrom(page.text),
     asset_type: "Computer",
@@ -1096,7 +1096,7 @@ test("Mailkonten unterstützen Graph, IMAP, POP3 und SMTP mit verschlüsselten Z
   }).expect(302);
 
   page = await agent.get("/settings?section=mail").expect(200);
-  assert.match(page.text, /Geführte Einrichtung/);
+  assert.match(page.text, /Postfach verbinden/);
   assert.match(page.text, /name="connection_mode"/);
   assert.match(page.text, /Microsoft Graph/);
   assert.match(page.text, /IMAP/);

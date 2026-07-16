@@ -1,6 +1,6 @@
 <% layout('layout') -%>
 <% if (currentUser.role === 'requester') { %>
-<header class="workbench-heading portal-list-heading"><div><p class="eyebrow">Kundenportal</p><h1>Meine Geräte</h1><p>Alle Geräte und Ressourcen, die dir aktuell zugeordnet sind.</p></div><a class="button button-primary" href="/tickets/new">Anfrage stellen</a></header>
+<header class="workbench-heading portal-list-heading"><div><h1>Meine Geräte</h1></div><a class="button button-primary" href="/tickets/new">Anfrage stellen</a></header>
 <section class="panel portal-assets-panel">
   <% if (assets.length) { %><div class="portal-asset-grid"><% assets.forEach(asset => { %><a href="/assets/<%= asset.id %>" class="portal-asset-card">
     <span class="portal-device-icon"><%= asset.asset_type === 'Notebook' ? 'NB' : asset.asset_type === 'Computer' ? 'PC' : asset.asset_type === 'Smartphone' ? 'SP' : asset.asset_type === 'Softwarelizenz' ? 'SW' : 'IT' %></span>
@@ -12,7 +12,7 @@
 </section>
 <% } else { %>
 <header class="workbench-heading">
-  <div><h1>Ressourcen</h1><p>Geräte, Lizenzen und weitere Objekte.</p></div>
+  <div><h1>Ressourcen</h1></div>
   <% if (can('assets.manage')) { %><a class="button button-primary" href="/assets/new">Ressource anlegen</a><% } %>
 </header>
 
@@ -24,7 +24,6 @@
     <button class="button button-secondary" type="submit">Filtern</button>
     <% if (filters.q || filters.type || filters.status) { %><a class="text-link" href="/assets">Zurücksetzen</a><% } %>
   </form>
-  <div class="result-count"><strong><%= assets.length %></strong> Ressourcen gefunden</div>
   <% if (assets.length) { %>
     <div class="asset-list">
       <% assets.forEach(asset => { %>
@@ -33,7 +32,6 @@
           <span class="asset-identity"><strong><%= asset.name %></strong><small><%= asset.asset_number %> · <%= asset.asset_type %></small></span>
           <span class="asset-meta"><strong><%= asset.customer_name || 'Ohne Kunde' %></strong><small><%= asset.assigned_user_name || 'Nicht zugewiesen' %></small></span>
           <span class="asset-meta"><strong><%= asset.manufacturer || '–' %> <%= asset.model || '' %></strong><small><%= asset.serial_number || 'Keine Seriennummer' %></small></span>
-          <span class="asset-meta"><strong><%= asset.ticket_count %></strong><small>verknüpfte Tickets</small></span>
           <span class="asset-status asset-status-<%= asset.status %>"><%= assetStatusLabel(asset.status) %></span>
           <span class="card-arrow">→</span>
         </a>

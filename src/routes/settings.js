@@ -19,19 +19,19 @@ const sections = ["overview", "queues", "ticket-types", "sla", "numbers", "templ
 const templateTypes = Object.freeze({ reply: "Antwort", signature: "Signatur", auto_reply: "Automatische Antwort" });
 
 const sectionMeta = {
-  overview: { group: "Admin-Center", title: "Admin-Center", description: "Wähle den Bereich, den du verwalten möchtest." },
-  queues: { group: "Ticket-System", title: "Queues", description: "Arbeitsbereiche, Hierarchien und Standard-SLAs verwalten.", action: "Queue anlegen" },
-  "ticket-types": { group: "Ticket-System", title: "Tickettypen", description: "Vorgänge einheitlich klassifizieren und sortieren.", action: "Tickettyp anlegen" },
-  sla: { group: "Ticket-System", title: "SLA-Zeiten", description: "Ziele für Erstreaktion und vollständige Lösung definieren.", action: "SLA anlegen" },
-  numbers: { group: "Ticket-System", title: "Nummernkreise", description: "Aufbau neuer Ticket- und Kundennummern festlegen." },
-  templates: { group: "Kommunikation", title: "Textvorlagen", description: "Antworten, Signaturen und automatische Antworttexte mit Variablen verwalten.", action: "Vorlage anlegen" },
-  "asset-types": { group: "Stammdaten", title: "Ressourcenarten", description: "Inventarklassen für Geräte, Lizenzen und Arbeitsplätze verwalten.", action: "Ressourcenart anlegen" },
-  mail: { group: "Kommunikation", title: "E-Mail-Konten", description: "Postfächer für Ticketimport und Antworten per SMTP, IMAP, POP3 oder Microsoft Graph verwalten.", action: "Mailkonto anlegen" },
-  roles: { group: "Rechte & System", title: "Rollen & Rechte", description: "Berechtigungsprofile erstellen und Benutzern direkt zuweisen.", action: "Rolle anlegen" },
-  groups: { group: "Rechte & System", title: "Gruppen", description: "Teams, Gruppenrollen und Queue-Zugriffe zentral steuern.", action: "Gruppe anlegen" },
-  appearance: { group: "Rechte & System", title: "Erscheinungsbild", description: "Firmenname, Logo und Farben an die eigene Marke anpassen." },
-  system: { group: "Rechte & System", title: "System", description: "Öffentliche URL und lokale Zeitzone verwalten." },
-  updates: { group: "Rechte & System", title: "Systemupdate", description: "Veröffentlichte Tixaro-Versionen prüfen und installieren." }
+  overview: { group: "Einstellungen", title: "Einstellungen", description: "" },
+  queues: { group: "Tickets", title: "Queues", description: "Zuständigkeiten und Standard-SLAs.", action: "Neue Queue" },
+  "ticket-types": { group: "Tickets", title: "Ticketarten", description: "Arten für neue Tickets.", action: "Neue Ticketart" },
+  sla: { group: "Tickets", title: "SLAs", description: "Reaktions- und Lösungszeiten.", action: "Neues SLA" },
+  numbers: { group: "Tickets", title: "Nummern", description: "Formate für Tickets und Kunden." },
+  templates: { group: "Kommunikation", title: "Vorlagen", description: "Antworten, Signaturen und automatische Antworten.", action: "Neue Vorlage" },
+  "asset-types": { group: "Daten", title: "Ressourcentypen", description: "Typen für Inventar und Verträge.", action: "Neuer Typ" },
+  mail: { group: "Kommunikation", title: "E-Mail", description: "Ein- und ausgehende Postfächer.", action: "Neues Postfach" },
+  roles: { group: "Zugriff", title: "Rollen", description: "Berechtigungen und direkte Zuweisungen.", action: "Neue Rolle" },
+  groups: { group: "Zugriff", title: "Gruppen", description: "Mitglieder, Rollen und Queue-Zugriffe.", action: "Neue Gruppe" },
+  appearance: { group: "System", title: "Darstellung", description: "Firmenname, Logo und Farben." },
+  system: { group: "System", title: "System", description: "Öffentliche URL und Zeitzone." },
+  updates: { group: "System", title: "Updates", description: "Installierte und verfügbare Versionen." }
 };
 
 const sectionPermissions = {
@@ -277,20 +277,18 @@ export function settingsRouter({ pool, config }) {
     }));
 
     const adminModules = [
-      { group: "Ticket-System", title: "Queues", description: "Arbeitsbereiche und Zuständigkeiten", href: "/settings?section=queues", permission: "settings.manage" },
-      { group: "Ticket-System", title: "Tickettypen", description: "Arten von Anfragen und Vorgängen", href: "/settings?section=ticket-types", permission: "settings.manage" },
-      { group: "Ticket-System", title: "SLA-Zeiten", description: "Reaktions- und Lösungszeiten", href: "/settings?section=sla", permission: "settings.manage" },
-      { group: "Ticket-System", title: "Nummernkreise", description: "Ticket- und Kundennummern", href: "/settings?section=numbers", permission: "settings.manage" },
+      { group: "Tickets", title: "Queues", description: "Zuständigkeiten und Hierarchien", href: "/settings?section=queues", permission: "settings.manage" },
+      { group: "Tickets", title: "Ticketarten", description: "Arten für neue Tickets", href: "/settings?section=ticket-types", permission: "settings.manage" },
+      { group: "Tickets", title: "SLAs", description: "Reaktions- und Lösungszeiten", href: "/settings?section=sla", permission: "settings.manage" },
+      { group: "Tickets", title: "Nummern", description: "Ticket- und Kundennummern", href: "/settings?section=numbers", permission: "settings.manage" },
       { group: "Kommunikation", title: "E-Mail", description: "Postfächer verbinden und verwalten", href: "/settings?section=mail", permission: "settings.manage" },
-      { group: "Kommunikation", title: "Textvorlagen", description: "Antworten, Signaturen und Variablen", href: "/settings?section=templates", permission: "settings.manage" },
-      { group: "Benutzer & Kunden", title: "Benutzer", description: "Konten und Portalzugänge", href: "/users", permission: "users.manage" },
-      { group: "Benutzer & Kunden", title: "Kunden", description: "Unternehmen und Ansprechpartner", href: "/customers", permission: "customers.view" },
-      { group: "Benutzer & Kunden", title: "Ressourcenarten", description: "Arten von Geräten und Verträgen", href: "/settings?section=asset-types", permission: "settings.manage" },
-      { group: "Rechte & System", title: "Rollen & Rechte", description: "Zugriffe und Berechtigungen", href: "/settings?section=roles", permission: "roles.manage" },
-      { group: "Rechte & System", title: "Gruppen", description: "Teams und Queue-Zugriffe", href: "/settings?section=groups", permission: "groups.manage" },
-      { group: "Rechte & System", title: "Erscheinungsbild", description: "Logo und Farben", href: "/settings?section=appearance", permission: "appearance.manage" },
-      { group: "Rechte & System", title: "System", description: "Öffentliche URL und Zeitzone", href: "/settings?section=system", permission: "settings.manage" },
-      { group: "Rechte & System", title: "Systemupdate", description: "Neue Tixaro-Version installieren", href: "/settings?section=updates", permission: "settings.manage" }
+      { group: "Kommunikation", title: "Vorlagen", description: "Antworten und Signaturen", href: "/settings?section=templates", permission: "settings.manage" },
+      { group: "Daten", title: "Ressourcentypen", description: "Geräte und Verträge", href: "/settings?section=asset-types", permission: "settings.manage" },
+      { group: "Zugriff", title: "Rollen", description: "Berechtigungen", href: "/settings?section=roles", permission: "roles.manage" },
+      { group: "Zugriff", title: "Gruppen", description: "Teams und Queue-Zugriffe", href: "/settings?section=groups", permission: "groups.manage" },
+      { group: "System", title: "Darstellung", description: "Name, Logo und Farben", href: "/settings?section=appearance", permission: "appearance.manage" },
+      { group: "System", title: "System", description: "URL und Zeitzone", href: "/settings?section=system", permission: "settings.manage" },
+      { group: "System", title: "Updates", description: "Versionen prüfen und installieren", href: "/settings?section=updates", permission: "settings.manage" }
     ].filter((module) => (!module.permission || hasPermission(req.user, module.permission)) && (!query || `${module.title} ${module.description} ${module.group}`.toLowerCase().includes(query.toLowerCase())));
 
     res.render("settings/index", {
@@ -353,7 +351,7 @@ export function settingsRouter({ pool, config }) {
 
   router.post("/numbers", async (req, res) => {
     await saveNumberFormats(pool, { ticket: req.body.ticket_format, customer: req.body.customer_format });
-    setFlash(req, "success", "Nummernkreise wurden gespeichert. Die Änderung gilt für neu angelegte Datensätze.");
+    setFlash(req, "success", "Nummernformate wurden gespeichert.");
     redirectTo(res, "numbers");
   });
 

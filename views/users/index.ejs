@@ -1,11 +1,10 @@
 <% layout('layout') -%>
 <div class="page-heading compact-heading">
-  <div><h1>Benutzerverwaltung</h1></div>
+  <div><h1>Benutzer</h1></div>
 </div>
 
 <div class="admin-grid">
   <section class="panel panel-wide">
-    <div class="panel-header"><div><h2>Benutzer</h2></div></div>
     <div class="user-list">
       <% users.forEach(user => { %>
         <article class="user-row <%= user.active ? '' : 'is-muted' %>">
@@ -22,16 +21,16 @@
     </div>
   </section>
   <aside class="panel form-panel">
-    <div class="panel-header"><div><h2>Neues Konto</h2></div></div>
+    <div class="panel-header"><div><h2>Benutzer anlegen</h2></div></div>
     <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
     <form class="stack-form" action="/users" method="post">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <div class="form-grid"><label>Vorname<input type="text" name="first_name" value="<%= values.first_name || '' %>" minlength="2" required></label><label>Nachname<input type="text" name="last_name" value="<%= values.last_name || '' %>" minlength="2" required></label></div>
-      <label>E-Mail-Adresse<input type="email" name="email" value="<%= values.email || '' %>" required><small>Kundenbenutzer werden über eine eindeutige Firmendomain automatisch zugeordnet.</small></label>
+      <label>E-Mail<input type="email" name="email" value="<%= values.email || '' %>" required></label>
       <label>Rolle<select name="role"><% roleOptions.forEach(role => { %><option value="<%= role %>" <%= (values.role || 'requester') === role ? 'selected' : '' %>><%= roleLabel(role) %></option><% }) %></select></label>
-      <label>Kunde <small>optional</small><select name="customer_id"><option value="">Automatisch über E-Mail-Domain</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id || '') === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · @<%= customer.domain %></option><% }) %></select><small>Gilt für Kundenbenutzer, Agenten und Administratoren; eine Auswahl überschreibt das automatische Matching.</small></label>
-      <label>Startpasswort<input type="password" name="password" minlength="10" autocomplete="new-password" required><small>Mindestens 10 Zeichen. Sicher übermitteln.</small></label>
-      <button class="button button-primary button-full" type="submit">Konto anlegen</button>
+      <label>Kunde<select name="customer_id"><option value="">Über E-Mail-Domain zuordnen</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id || '') === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · @<%= customer.domain %></option><% }) %></select></label>
+      <label>Startpasswort<input type="password" name="password" minlength="10" autocomplete="new-password" required><small>Mindestens 10 Zeichen</small></label>
+      <button class="button button-primary button-full" type="submit">Anlegen</button>
     </form>
   </aside>
 </div>

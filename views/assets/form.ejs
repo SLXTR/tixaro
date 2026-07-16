@@ -1,38 +1,43 @@
 <% layout('layout') -%>
-<div class="page-heading compact-heading">
+<header class="workbench-heading">
   <div><h1>Ressource anlegen</h1></div>
-  <a class="button button-secondary" href="/assets">Abbrechen</a>
-</div>
+  <a class="button button-secondary" href="/assets">Zurück</a>
+</header>
 
-<form class="editor-grid asset-editor" action="/assets" method="post">
+<form class="panel form-panel reduced-form" action="/assets" method="post">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <div class="asset-form-main">
-    <section class="panel form-panel">
-      <div class="panel-header"><div><h2>Identifikation</h2></div></div>
-      <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
-      <div class="form-grid">
-        <label>Ressourcentyp<select name="asset_type"><% assetTypes.forEach(value => { %><option value="<%= value %>" <%= (values.asset_type || 'Computer') === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
-        <label>Status<select name="status"><% assetStatuses.forEach(value => { %><option value="<%= value %>" <%= (values.status || 'active') === value ? 'selected' : '' %>><%= assetStatusLabel(value) %></option><% }) %></select></label>
-        <label class="field-full">Bezeichnung<input type="text" name="name" value="<%= values.name || '' %>" minlength="2" placeholder="z. B. Notebook Empfang Berlin" required autofocus></label>
-        <label>Hersteller<input type="text" name="manufacturer" value="<%= values.manufacturer || '' %>"></label>
-        <label>Modell<input type="text" name="model" value="<%= values.model || '' %>"></label>
-        <label>Seriennummer<input type="text" name="serial_number" value="<%= values.serial_number || '' %>"></label>
-        <label>Betriebssystem<input type="text" name="operating_system" value="<%= values.operating_system || '' %>"></label>
-        <label>CPU<input type="text" name="cpu" value="<%= values.cpu || '' %>"></label>
-        <label>Arbeitsspeicher<input type="text" name="memory" value="<%= values.memory || '' %>" placeholder="z. B. 16 GB"></label>
-        <label>IP-Adresse<input type="text" name="ip_address" value="<%= values.ip_address || '' %>"></label>
-        <label>MAC-Adresse<input type="text" name="mac_address" value="<%= values.mac_address || '' %>"></label>
-        <label>Standort<input type="text" name="location" value="<%= values.location || '' %>"></label>
-        <label>Kaufdatum<input type="date" name="purchase_date" value="<%= values.purchase_date || '' %>"></label>
-        <label>Garantie bis<input type="date" name="warranty_until" value="<%= values.warranty_until || '' %>"></label>
-        <label class="field-full">Interne Notizen<textarea name="notes" rows="5"><%= values.notes || '' %></textarea></label>
-      </div>
-    </section>
+  <% if (error) { %><div class="form-error" role="alert"><%= error %></div><% } %>
+  <div class="form-grid">
+    <label class="field-full">Bezeichnung<input type="text" name="name" value="<%= values.name || '' %>" minlength="2" placeholder="z. B. Notebook Empfang" required autofocus></label>
+    <label>Typ<select name="asset_type"><% assetTypes.forEach(value => { %><option value="<%= value %>" <%= (values.asset_type || 'Computer') === value ? 'selected' : '' %>><%= value %></option><% }) %></select></label>
+    <label>Status<select name="status"><% assetStatuses.forEach(value => { %><option value="<%= value %>" <%= (values.status || 'active') === value ? 'selected' : '' %>><%= assetStatusLabel(value) %></option><% }) %></select></label>
+    <label>Kunde<select name="customer_id" data-customer-select><option value="">Kein Kunde</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id) === String(customer.id) ? 'selected' : '' %>><%= customer.name %></option><% }) %></select></label>
+    <label>Benutzer<select name="assigned_user_id" data-contact-select><option value="">Nicht zugewiesen</option><% contacts.forEach(contact => { %><option value="<%= contact.id %>" data-customer-id="<%= contact.customer_id %>" <%= String(values.assigned_user_id) === String(contact.id) ? 'selected' : '' %>><%= contact.name %> · <%= contact.customer_name %></option><% }) %></select></label>
   </div>
-  <aside class="panel form-panel">
-    <div class="panel-header"><div><h2>Zuordnung</h2></div></div>
-    <label>Kunde<select name="customer_id" data-customer-select><option value="">Kein Kunde</option><% customers.forEach(customer => { %><option value="<%= customer.id %>" <%= String(values.customer_id) === String(customer.id) ? 'selected' : '' %>><%= customer.name %> · <%= customer.customer_number %></option><% }) %></select></label>
-    <label>Kundenbenutzer<select name="assigned_user_id" data-contact-select><option value="">Nicht zugewiesen</option><% contacts.forEach(contact => { %><option value="<%= contact.id %>" data-customer-id="<%= contact.customer_id %>" <%= String(values.assigned_user_id) === String(contact.id) ? 'selected' : '' %>><%= contact.name %> · <%= contact.customer_name %></option><% }) %></select><small>Es werden nur Kontakte des gewählten Kunden angeboten.</small></label>
-    <div class="form-actions-sticky"><button class="button button-primary button-full" type="submit">Ressource speichern</button></div>
-  </aside>
+
+  <details class="form-disclosure">
+    <summary>Technische Daten</summary>
+    <div class="form-grid">
+      <label>Hersteller<input type="text" name="manufacturer" value="<%= values.manufacturer || '' %>"></label>
+      <label>Modell<input type="text" name="model" value="<%= values.model || '' %>"></label>
+      <label>Seriennummer<input type="text" name="serial_number" value="<%= values.serial_number || '' %>"></label>
+      <label>Betriebssystem<input type="text" name="operating_system" value="<%= values.operating_system || '' %>"></label>
+      <label>CPU<input type="text" name="cpu" value="<%= values.cpu || '' %>"></label>
+      <label>Arbeitsspeicher<input type="text" name="memory" value="<%= values.memory || '' %>" placeholder="z. B. 16 GB"></label>
+      <label>IP-Adresse<input type="text" name="ip_address" value="<%= values.ip_address || '' %>"></label>
+      <label>MAC-Adresse<input type="text" name="mac_address" value="<%= values.mac_address || '' %>"></label>
+    </div>
+  </details>
+
+  <details class="form-disclosure">
+    <summary>Weitere Angaben</summary>
+    <div class="form-grid">
+      <label class="field-full">Standort<input type="text" name="location" value="<%= values.location || '' %>"></label>
+      <label>Kaufdatum<input type="date" name="purchase_date" value="<%= values.purchase_date || '' %>"></label>
+      <label>Garantie bis<input type="date" name="warranty_until" value="<%= values.warranty_until || '' %>"></label>
+      <label class="field-full">Notizen<textarea name="notes" rows="4"><%= values.notes || '' %></textarea></label>
+    </div>
+  </details>
+
+  <div class="reduced-form-actions"><button class="button button-primary" type="submit">Speichern</button></div>
 </form>
